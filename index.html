@@ -1,129 +1,1746 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Moje Aplikace</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Disponent 101 — tréninkové prostředí MRP</title>
 </head>
 <body>
+<style>
+/* ============================================================
+   Disponent 101 — tréninkové prostředí denních úkonů disponenta
+   Vizuální jazyk: provozní konzole podnikového systému.
+   Tokeny: chladné modrošedé neutrály, jediný modrý akcent,
+   vyhrazené stavové barvy (dobrý / pozor / kritický).
+   ============================================================ */
 
-  <header class="hero">
-    <div class="hero-content">
-      <h1>Ahoj, jsem Vašek</h1>
-      <p class="hero-sub">Tady najdeš aplikace, na kterých jsem pracoval.</p>
+:root{
+  --ground:#e6ebf1;
+  --panel:#ffffff;
+  --panel-2:#f3f6fa;
+  --panel-3:#e9eef4;
+  --chrome:#173a58;
+  --chrome-2:#0f2942;
+  --chrome-ink:#dce8f2;
+  --ink:#10202e;
+  --ink-2:#42586a;
+  --ink-3:#71879b;
+  --line:#c2cedb;
+  --line-2:#dde4ec;
+  --accent:#0a6ed1;
+  --accent-ink:#ffffff;
+  --accent-soft:#e2eefb;
+  --good:#186c3e;
+  --good-soft:#e0f1e7;
+  --warn:#a85400;
+  --warn-soft:#fbeddd;
+  --crit:#9c1414;
+  --crit-soft:#fae3e3;
+  --shadow:0 1px 2px rgba(16,32,46,.10), 0 8px 24px rgba(16,32,46,.10);
+  --ui:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --data:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d141b;
+    --panel:#161f28;
+    --panel-2:#1b2632;
+    --panel-3:#212d3a;
+    --chrome:#0a1620;
+    --chrome-2:#050d14;
+    --chrome-ink:#c7d8e6;
+    --ink:#dce5ee;
+    --ink-2:#9db0c1;
+    --ink-3:#6f8497;
+    --line:#2d3b49;
+    --line-2:#232f3c;
+    --accent:#5cb0f5;
+    --accent-ink:#08131d;
+    --accent-soft:#12293d;
+    --good:#54c584;
+    --good-soft:#122a1d;
+    --warn:#e5983f;
+    --warn-soft:#2d2112;
+    --crit:#f07a76;
+    --crit-soft:#2f1616;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d141b;
+  --panel:#161f28;
+  --panel-2:#1b2632;
+  --panel-3:#212d3a;
+  --chrome:#0a1620;
+  --chrome-2:#050d14;
+  --chrome-ink:#c7d8e6;
+  --ink:#dce5ee;
+  --ink-2:#9db0c1;
+  --ink-3:#6f8497;
+  --line:#2d3b49;
+  --line-2:#232f3c;
+  --accent:#5cb0f5;
+  --accent-ink:#08131d;
+  --accent-soft:#12293d;
+  --good:#54c584;
+  --good-soft:#122a1d;
+  --warn:#e5983f;
+  --warn-soft:#2d2112;
+  --crit:#f07a76;
+  --crit-soft:#2f1616;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.45);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--ui);
+  font-size:13px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* ---------- shell ---------- */
+.shell{
+  display:grid;
+  grid-template-rows:auto auto 1fr auto;
+  height:100vh;
+  min-height:0;
+}
+
+/* ---------- title bar ---------- */
+.titlebar{
+  background:linear-gradient(180deg,var(--chrome),var(--chrome-2));
+  color:var(--chrome-ink);
+  display:flex;align-items:center;gap:14px;
+  padding:0 12px;height:38px;
+  border-bottom:1px solid var(--chrome-2);
+}
+.titlebar .sys{
+  font-family:var(--data);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  opacity:.72;white-space:nowrap;
+}
+.titlebar .screen-name{font-weight:600;font-size:13.5px;letter-spacing:.01em}
+.titlebar .spacer{flex:1}
+.titlebar .clock{font-family:var(--data);font-size:12px;opacity:.85;white-space:nowrap}
+.theme-btn{
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);
+  color:inherit;border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer;
+  font-family:var(--data);letter-spacing:.06em;
+}
+.theme-btn:hover{background:rgba(255,255,255,.2)}
+
+/* ---------- command row ---------- */
+.cmdrow{
+  display:flex;align-items:center;gap:8px;
+  background:var(--panel-2);
+  border-bottom:1px solid var(--line);
+  padding:5px 10px;
+  flex-wrap:wrap;
+}
+.cmdfield{
+  display:flex;align-items:center;gap:0;
+  border:1px solid var(--line);border-radius:2px;background:var(--panel);
+  overflow:hidden;
+}
+.cmdfield label{
+  font-family:var(--data);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);padding:0 8px;background:var(--panel-3);align-self:stretch;
+  display:flex;align-items:center;border-right:1px solid var(--line-2);
+}
+.cmdfield input{
+  border:0;background:transparent;padding:4px 8px;width:150px;
+  font-family:var(--data);font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;
+}
+.cmdfield input:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.tbtn{
+  background:var(--panel);border:1px solid var(--line);border-radius:2px;
+  padding:4px 10px;cursor:pointer;font-size:12px;color:var(--ink-2);
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.tbtn:hover:not(:disabled){background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.tbtn:disabled{opacity:.42;cursor:not-allowed}
+.tbtn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.tbtn.primary:hover:not(:disabled){filter:brightness(1.08);background:var(--accent);color:var(--accent-ink)}
+.tbtn kbd{
+  font-family:var(--data);font-size:10px;border:1px solid var(--line);
+  border-radius:2px;padding:0 3px;color:var(--ink-3);background:var(--panel-2);
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* ---------- body split ---------- */
+.split{display:grid;grid-template-columns:264px 1fr;min-height:0;overflow:hidden}
+@media (max-width:880px){ .split{grid-template-columns:1fr} .rail{display:none} }
+
+.rail{
+  background:var(--panel);
+  border-right:1px solid var(--line);
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+}
+.rail-sec{border-bottom:1px solid var(--line-2);padding:11px 12px}
+.rail-h{
+  font-family:var(--data);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 8px;font-weight:600;
+}
+.daybox{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+.daybox .dnum{font-size:26px;font-weight:700;letter-spacing:-.02em;font-family:var(--data)}
+.daybox .dof{font-size:11.5px;color:var(--ink-3)}
+.daydate{font-family:var(--data);font-size:12px;color:var(--ink-2);letter-spacing:.02em}
+
+.tasklist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tasklist li{display:flex;gap:8px;align-items:flex-start;font-size:12.2px;line-height:1.35}
+.tick{
+  width:14px;height:14px;flex:0 0 14px;margin-top:2px;border-radius:2px;
+  border:1px solid var(--line);background:var(--panel-2);
+  display:grid;place-items:center;font-size:10px;color:var(--ink-3);
+}
+.tasklist li.done .tick{background:var(--good);border-color:var(--good);color:var(--panel)}
+.tasklist li.done .tlabel{color:var(--ink-3);text-decoration:line-through}
+.tcount{margin-left:auto;font-family:var(--data);font-size:11px;color:var(--ink-3);white-space:nowrap}
+
+.navlist{display:flex;flex-direction:column;gap:1px}
+.navitem{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  background:transparent;border:0;border-radius:2px;padding:5px 7px;cursor:pointer;font-size:12.5px;
+  color:var(--ink-2);
+}
+.navitem:hover{background:var(--panel-2);color:var(--ink)}
+.navitem.active{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.navitem .tcode{
+  font-family:var(--data);font-size:10.5px;letter-spacing:.05em;color:var(--ink-3);
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:2px;padding:0 4px;min-width:48px;text-align:center;
+}
+.navitem.active .tcode{color:var(--accent);border-color:var(--accent);background:var(--panel)}
+.navbadge{
+  margin-left:auto;font-family:var(--data);font-size:10.5px;font-weight:700;
+  border-radius:9px;padding:0 6px;min-width:18px;text-align:center;
+}
+.navbadge.crit{background:var(--crit);color:var(--panel)}
+.navbadge.warn{background:var(--warn);color:var(--panel)}
+:root[data-theme="dark"] .navbadge.crit,:root[data-theme="dark"] .navbadge.warn{color:#0d141b}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .navbadge.crit,:root:not([data-theme="light"]) .navbadge.warn{color:#0d141b}}
+
+/* ---------- kpi strip ---------- */
+.kpigrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi{
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:3px;
+  padding:7px 9px;display:flex;flex-direction:column;gap:1px;
+}
+.kpi .k-l{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-family:var(--data)}
+.kpi .k-v{font-family:var(--data);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .k-s{font-size:10.5px;color:var(--ink-3)}
+.k-v.good{color:var(--good)} .k-v.warn{color:var(--warn)} .k-v.crit{color:var(--crit)}
+
+/* ---------- work area ---------- */
+.work{overflow:auto;padding:0;min-width:0;background:var(--ground)}
+.screen{padding:16px 20px 40px;max-width:1180px}
+.screen-head{margin:0 0 4px}
+.screen-h1{font-size:19px;font-weight:600;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.screen-sub{color:var(--ink-2);font-size:12.5px;margin:2px 0 14px;max-width:70ch}
+.tcode-chip{
+  font-family:var(--data);font-size:10.5px;letter-spacing:.1em;color:var(--accent);
+  border:1px solid var(--accent);border-radius:2px;padding:1px 5px;vertical-align:2px;margin-right:8px;
+}
+
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:3px;
+  box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;
+}
+.card-h{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 12px;background:var(--panel-2);border-bottom:1px solid var(--line);
+}
+.card-h h3{margin:0;font-size:12.5px;font-weight:600;letter-spacing:.01em}
+.card-h .hint{font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.card-b{padding:12px}
+.card-b.flush{padding:0}
+
+/* ---------- field grid (SAP-style header data) ---------- */
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:9px 18px;padding:12px}
+.field{display:flex;flex-direction:column;gap:1px;min-width:0}
+.field .f-l{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-family:var(--data)}
+.field .f-v{font-family:var(--data);font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+
+/* ---------- tables ---------- */
+.tblwrap{overflow-x:auto}
+table.grid{border-collapse:collapse;width:100%;font-size:12.3px}
+table.grid th{
+  background:var(--panel-3);color:var(--ink-2);
+  font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-family:var(--data);font-weight:600;
+  text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);white-space:nowrap;
+  position:sticky;top:0;z-index:1;
+}
+table.grid td{
+  padding:5px 9px;border-bottom:1px solid var(--line-2);vertical-align:middle;white-space:nowrap;
+}
+table.grid td.num{text-align:right;font-family:var(--data);font-variant-numeric:tabular-nums}
+table.grid td.code{font-family:var(--data);letter-spacing:.02em}
+table.grid tbody tr.sel{background:var(--accent-soft)}
+table.grid tbody tr.clickable{cursor:pointer}
+table.grid tbody tr.clickable:hover{background:var(--panel-2)}
+table.grid tbody tr.clickable.sel:hover{background:var(--accent-soft)}
+table.grid td.wrap{white-space:normal;min-width:180px}
+.negative{color:var(--crit);font-weight:600}
+
+/* severity stripe in first cell */
+td.stripe{border-left:3px solid transparent;padding-left:6px}
+td.stripe.s-crit{border-left-color:var(--crit)}
+td.stripe.s-warn{border-left-color:var(--warn)}
+td.stripe.s-good{border-left-color:var(--good)}
+td.stripe.s-none{border-left-color:var(--line-2)}
+
+.pill{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--data);font-size:10.5px;letter-spacing:.05em;
+  border-radius:2px;padding:1px 6px;border:1px solid transparent;white-space:nowrap;
+}
+.pill.crit{background:var(--crit-soft);color:var(--crit);border-color:var(--crit)}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.pill.good{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.pill.info{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.pill.mute{background:var(--panel-2);color:var(--ink-3);border-color:var(--line)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:0 0 7px}
+
+/* coverage meter — magnitude, single hue, status-tinted */
+.meter{display:flex;align-items:center;gap:7px;min-width:120px}
+.meter-track{
+  flex:1;height:7px;border-radius:4px;background:var(--panel-3);overflow:hidden;min-width:56px;
+  border:1px solid var(--line-2);
+}
+.meter-fill{display:block;height:100%;border-radius:4px 0 0 4px;background:var(--accent);min-width:2px}
+.meter-fill.good{background:var(--good)} .meter-fill.warn{background:var(--warn)} .meter-fill.crit{background:var(--crit)}
+.meter-v{font-family:var(--data);font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--ink-2);min-width:40px;text-align:right}
+
+/* ---------- action bar under tables ---------- */
+.actionbar{
+  display:flex;gap:7px;flex-wrap:wrap;align-items:center;
+  padding:9px 12px;background:var(--panel-2);border-top:1px solid var(--line);
+}
+.actionbar .sel-info{font-size:11.5px;color:var(--ink-3);margin-left:auto;font-family:var(--data)}
+
+/* ---------- inbox ---------- */
+.mail{border-bottom:1px solid var(--line-2);padding:10px 12px;display:flex;gap:11px;align-items:flex-start}
+.mail:last-child{border-bottom:0}
+.mail.unread{background:var(--accent-soft)}
+.mail-ic{
+  width:24px;height:24px;flex:0 0 24px;border-radius:3px;display:grid;place-items:center;
+  font-family:var(--data);font-size:11px;font-weight:700;border:1px solid;
+}
+.mail-body{min-width:0;flex:1}
+.mail-subj{font-weight:600;font-size:12.6px;margin:0 0 2px}
+.mail-from{font-family:var(--data);font-size:10.5px;color:var(--ink-3);letter-spacing:.04em;margin:0 0 5px}
+.mail-txt{margin:0;font-size:12.3px;color:var(--ink-2);line-height:1.5;max-width:78ch}
+.mail-act{margin-top:8px;display:flex;gap:7px;flex-wrap:wrap}
+
+/* ---------- modal ---------- */
+.veil{
+  position:fixed;inset:0;background:rgba(9,20,30,.55);backdrop-filter:blur(2px);
+  display:grid;place-items:center;padding:20px;z-index:50;
+}
+.modal{
+  background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow);
+  width:min(560px,100%);max-height:88vh;overflow:auto;
+}
+.modal-h{
+  background:linear-gradient(180deg,var(--chrome),var(--chrome-2));color:var(--chrome-ink);
+  padding:8px 13px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;
+}
+.modal-b{padding:14px}
+.modal-f{padding:11px 14px;background:var(--panel-2);border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.form-row{display:flex;flex-direction:column;gap:3px;margin-bottom:11px}
+.form-row label{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-family:var(--data)}
+.form-row input,.form-row select{
+  border:1px solid var(--line);border-radius:2px;background:var(--panel-2);padding:5px 8px;
+  font-family:var(--data);font-size:13px;width:100%;
+}
+.opt{
+  display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:3px;
+  padding:9px 11px;cursor:pointer;background:var(--panel-2);margin-bottom:7px;
+}
+.opt:hover{border-color:var(--accent)}
+.opt input{margin-top:3px}
+.opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.opt .o-t{font-weight:600;font-size:12.5px}
+.opt .o-d{font-size:11.8px;color:var(--ink-2);line-height:1.45}
+
+/* ---------- status bar ---------- */
+.statusbar{
+  display:flex;align-items:center;gap:9px;
+  background:var(--panel);border-top:1px solid var(--line);
+  padding:5px 12px;font-size:12.2px;min-height:30px;
+}
+.statusbar .sb-ic{
+  width:16px;height:16px;flex:0 0 16px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;font-weight:700;color:var(--panel);
+}
+:root[data-theme="dark"] .statusbar .sb-ic{color:#0d141b}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .statusbar .sb-ic{color:#0d141b}}
+.sb-good .sb-ic{background:var(--good)} .sb-warn .sb-ic{background:var(--warn)}
+.sb-crit .sb-ic{background:var(--crit)} .sb-info .sb-ic{background:var(--accent)}
+.sb-msg{font-family:var(--data);font-size:12px;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.statusbar .sb-right{margin-left:auto;font-family:var(--data);font-size:11px;color:var(--ink-3);white-space:nowrap}
+
+/* ---------- misc ---------- */
+.note{
+  border-left:3px solid var(--accent);background:var(--accent-soft);
+  padding:9px 12px;font-size:12.3px;line-height:1.5;border-radius:0 3px 3px 0;margin-bottom:14px;
+  max-width:78ch;
+}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.crit{border-left-color:var(--crit);background:var(--crit-soft)}
+.note strong{font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2);padding:9px 12px;border-top:1px solid var(--line-2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.empty{padding:26px 14px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.mono{font-family:var(--data)}
+.tnum{font-variant-numeric:tabular-nums}
+h4.sub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-family:var(--data);margin:16px 0 7px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:12px 13px;display:flex;flex-direction:column;gap:2px}
+.tile .t-l{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-family:var(--data)}
+.tile .t-v{font-family:var(--data);font-size:25px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.15}
+.tile .t-s{font-size:11.5px;color:var(--ink-2)}
+.scorebig{font-family:var(--data);font-size:64px;font-weight:700;letter-spacing:-.04em;line-height:1}
+ul.plain{margin:6px 0 0;padding-left:18px;font-size:12.4px;color:var(--ink-2);line-height:1.6}
+ul.plain li{margin-bottom:3px}
+.kbdhelp{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-3);margin-top:10px}
+@media (prefers-reduced-motion: no-preference){
+  .screen{animation:fade .16s ease-out}
+  @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+}
+</style>
+
+<div class="shell">
+  <div class="titlebar">
+    <span class="sys">PRD · MND 100 · Závod 1000 Plzeň</span>
+    <span class="screen-name" id="screenName">SAP Easy Access</span>
+    <span class="spacer"></span>
+    <span class="clock" id="clock">—</span>
+    <button class="theme-btn" id="themeBtn" type="button">TÉMA</button>
+  </div>
+
+  <div class="cmdrow">
+    <div class="cmdfield">
+      <label for="cmd">Transakce</label>
+      <input id="cmd" type="text" autocomplete="off" spellcheck="false" placeholder="/nMD04" aria-label="Pole pro zadání transakce" />
     </div>
-  </header>
+    <button class="tbtn" id="btnBack" type="button">◀ Zpět</button>
+    <button class="tbtn" id="btnMenu" type="button">Menu</button>
+    <span class="spacer" style="flex:1"></span>
+    <button class="tbtn primary" id="btnClose" type="button">Uzávěrka dne <kbd>ZDEN</kbd></button>
+  </div>
 
-  <main class="apps">
+  <div class="split">
+    <aside class="rail">
+      <div class="rail-sec">
+        <p class="rail-h">Pracovní den</p>
+        <div class="daybox"><span class="dnum" id="dayNum">1</span><span class="dof" id="dayOf">z 10</span></div>
+        <div class="daydate" id="dayDate">—</div>
+      </div>
+      <div class="rail-sec">
+        <p class="rail-h">Denní úkony</p>
+        <ul class="tasklist" id="taskList"></ul>
+      </div>
+      <div class="rail-sec">
+        <p class="rail-h">Transakce</p>
+        <nav class="navlist" id="navList"></nav>
+      </div>
+      <div class="rail-sec" style="border-bottom:0">
+        <p class="rail-h">Ukazatele</p>
+        <div class="kpigrid" id="kpiGrid"></div>
+      </div>
+    </aside>
 
-    <section class="app-card" id="app1">
-      <div class="app-image">
-        <img src="https://placehold.co/600x400/173a58/dce8f2?text=Disponent+101" alt="Tréninkové prostředí disponenta" />
-      </div>
-      <div class="app-info">
-        <span class="app-tag">Web App</span>
-        <h2>Disponent 101</h2>
-        <p>Tréninkové prostředí denních úkonů disponenta podle SAPu. Seznam MRP, stav zásob a potřeb, převod požadavků na objednávky, urgence u dodavatelů — a na konci vyhodnocení, jestli linka stála a co stály expresní dodávky.</p>
-        <ul class="tech-stack">
-          <li>HTML</li>
-          <li>CSS</li>
-          <li>JavaScript</li>
-        </ul>
-        <a href="disponent/" class="btn">Spustit simulaci →</a>
-      </div>
-    </section>
+    <main class="work" id="work"></main>
+  </div>
 
-    <section class="app-card reverse" id="app2">
-      <div class="app-image">
-        <img src="https://placehold.co/600x400/0f3460/e0f0ff?text=App+2" alt="Aplikace 2" />
-      </div>
-      <div class="app-info">
-        <span class="app-tag">Mobile App</span>
-        <h2>Název Aplikace 2</h2>
-        <p>Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation.</p>
-        <ul class="tech-stack">
-          <li>React Native</li>
-          <li>Firebase</li>
-          <li>TypeScript</li>
-        </ul>
-        <a href="#" class="btn">Zobrazit projekt →</a>
-      </div>
-    </section>
+  <div class="statusbar sb-info" id="statusbar">
+    <span class="sb-ic" id="sbIc">i</span>
+    <span class="sb-msg" id="sbMsg">Systém připraven. Zadejte transakci nebo zvolte z menu.</span>
+    <span class="sb-right" id="sbRight"></span>
+  </div>
+</div>
 
-    <section class="app-card" id="app3">
-      <div class="app-image">
-        <img src="https://placehold.co/600x400/16213e/d0e8ff?text=App+3" alt="Aplikace 3" />
-      </div>
-      <div class="app-info">
-        <span class="app-tag">API / Backend</span>
-        <h2>Název Aplikace 3</h2>
-        <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint.</p>
-        <ul class="tech-stack">
-          <li>Python</li>
-          <li>FastAPI</li>
-          <li>Redis</li>
-        </ul>
-        <a href="#" class="btn">Zobrazit projekt →</a>
-      </div>
-    </section>
+<div id="modalHost"></div>
 
-    <section class="app-card reverse" id="app4">
-      <div class="app-image">
-        <img src="https://placehold.co/600x400/1a1a2e/ffe0f0?text=App+4" alt="Aplikace 4" />
-      </div>
-      <div class="app-info">
-        <span class="app-tag">Desktop App</span>
-        <h2>Název Aplikace 4</h2>
-        <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-        <ul class="tech-stack">
-          <li>Electron</li>
-          <li>Vue.js</li>
-          <li>SQLite</li>
-        </ul>
-        <a href="#" class="btn">Zobrazit projekt →</a>
-      </div>
-    </section>
+<script>
+"use strict";
+/* ==========================================================================
+   1. POMOCNÉ FUNKCE
+   ========================================================================== */
+const DAY_MS = 86400000;
+let seed = 20260810;
+function rnd(){ seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+function randInt(a,b){ return a + Math.floor(rnd()*(b-a+1)); }
+function pick(arr){ return arr[Math.floor(rnd()*arr.length)]; }
 
-    <section class="app-card" id="app5">
-      <div class="app-image">
-        <img src="https://placehold.co/600x400/0f3460/f0ffe0?text=App+5" alt="Aplikace 5" />
-      </div>
-      <div class="app-info">
-        <span class="app-tag">AI / ML</span>
-        <h2>Název Aplikace 5</h2>
-        <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit sed quia consequuntur magni dolores eos.</p>
-        <ul class="tech-stack">
-          <li>Python</li>
-          <li>TensorFlow</li>
-          <li>Docker</li>
-        </ul>
-        <a href="#" class="btn">Zobrazit projekt →</a>
-      </div>
-    </section>
+function d(y,m,day){ return new Date(Date.UTC(y,m-1,day)); }
+function addDays(dt,n){ return new Date(dt.getTime()+n*DAY_MS); }
+function isWeekend(dt){ const w=dt.getUTCDay(); return w===0||w===6; }
+function nextWorkday(dt){ let x=new Date(dt.getTime()); while(isWeekend(x)) x=addDays(x,1); return x; }
+function addWorkdays(dt,n){
+  let x=new Date(dt.getTime()), left=Math.abs(n), step=n>=0?1:-1;
+  while(left>0){ x=addDays(x,step); if(!isWeekend(x)) left--; }
+  return x;
+}
+function diffDays(a,b){ return Math.round((a.getTime()-b.getTime())/DAY_MS); }
+function sameDay(a,b){ return a.getTime()===b.getTime(); }
+const CZ_DAYS=["neděle","pondělí","úterý","středa","čtvrtek","pátek","sobota"];
+function fmtD(dt){
+  const p=n=>String(n).padStart(2,"0");
+  return p(dt.getUTCDate())+"."+p(dt.getUTCMonth()+1)+"."+dt.getUTCFullYear();
+}
+function fmtDLong(dt){ return CZ_DAYS[dt.getUTCDay()]+" "+fmtD(dt); }
+function num(n,dec){
+  dec = dec===undefined?0:dec;
+  const s=Math.abs(n).toFixed(dec).split(".");
+  s[0]=s[0].replace(/\B(?=(\d{3})+(?!\d))/g," ");
+  return (n<0?"−":"")+s.join(",");
+}
+function money(n){ return num(Math.round(n))+" Kč"; }
+/* české skloňování po číslovce: 1 / 2–4 / 5+ */
+function plural(n, one, few, many){ return n===1?one:(n>=2&&n<=4?few:many); }
+function cnt(n, one, few, many){ return n+" "+plural(n,one,few,many); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+let idSeq = 4700000;
+function nextId(prefix){ idSeq+=randInt(1,7); return prefix+idSeq; }
 
-    <section class="app-card reverse" id="app6">
-      <div class="app-image">
-        <img src="https://placehold.co/600x400/16213e/fff0d0?text=App+6" alt="Aplikace 6" />
-      </div>
-      <div class="app-info">
-        <span class="app-tag">CLI Tool</span>
-        <h2>Název Aplikace 6</h2>
-        <p>Ut enim ad minima veniam quis nostrum exercitationem ullam corporis suscipit laboriosam nisi ut aliquid ex ea commodi.</p>
-        <ul class="tech-stack">
-          <li>Go</li>
-          <li>Cobra</li>
-          <li>Shell</li>
-        </ul>
-        <a href="#" class="btn">Zobrazit projekt →</a>
-      </div>
-    </section>
+/* ==========================================================================
+   2. KMENOVÁ DATA
+   ========================================================================== */
+const START = d(2026,8,10);            // pondělí
+const HORIZON = 40;                    // dní dopředu, které MRP plánuje
+const MAX_DAYS = 10;
 
-  </main>
+const VENDORS = {
+  "D-1001":{name:"Ložiska Brno s.r.o.",  reliability:.90},
+  "D-1002":{name:"Kovoobrábění Zlín a.s.",reliability:.78},
+  "D-1003":{name:"EMotor GmbH",           reliability:.84},
+  "D-1004":{name:"Gumex CZ s.r.o.",       reliability:.93},
+  "D-1005":{name:"Ferona Trading",        reliability:.88},
+  "D-1006":{name:"Spojmat Praha",         reliability:.95},
+  "D-1007":{name:"Colorlak Uh. Hradiště", reliability:.80}
+};
 
-  <footer class="footer">
-    <p>© 2026 Vašek · <a href="mailto:hello@example.com">hello@example.com</a></p>
-  </footer>
+/* MRP prvky:  ZASOBA | SekPoz (potřeba) | ObjPl (plánovaná zakázka)
+               BANF (nákupní požadavek) | Objedn (objednávka) | VyrZak (výrobní zakázka) */
+const MATERIALS = [
+  {id:"100-100", txt:"Ložisko kuličkové 6205-2RS",        type:"ROH", unit:"KS", safety:200,  lot:"FX", fix:500,  round:50, plt:10, price:42.5,   vendor:"D-1001", stock:640,  base:70,  var:40},
+  {id:"100-210", txt:"Hřídel ocelová Ø25×340",            type:"HALB",unit:"KS", safety:80,   lot:"EX", fix:0,    round:10, plt:7,  price:310,    vendor:"D-1002", stock:210,  base:26,  var:14},
+  {id:"100-330", txt:"Elektromotor 1,5 kW / 1400 ot.",    type:"ROH", unit:"KS", safety:15,   lot:"EX", fix:0,    round:5,  plt:21, price:4250,   vendor:"D-1003", stock:44,   base:6,   var:4},
+  {id:"100-440", txt:"Těsnicí kroužek NBR 25×35×7",       type:"ROH", unit:"KS", safety:500,  lot:"FX", fix:2000, round:0,  plt:14, price:6.8,    vendor:"D-1004", stock:1450, base:140, var:70},
+  {id:"100-550", txt:"Plech ocelový S235JR 2,0 mm",       type:"ROH", unit:"KG", safety:400,  lot:"EX", fix:0,    round:100,plt:12, price:28.9,   vendor:"D-1005", stock:980,  base:110, var:60},
+  {id:"100-660", txt:"Šroub M8×40 DIN 933 Zn",            type:"ROH", unit:"KS", safety:2000, lot:"FX", fix:5000, round:0,  plt:5,  price:1.2,    vendor:"D-1006", stock:6800, base:520, var:260},
+  {id:"100-770", txt:"Barva prášková RAL 5010",           type:"ROH", unit:"KG", safety:60,   lot:"FX", fix:200,  round:0,  plt:15, price:185,    vendor:"D-1007", stock:135,  base:14,  var:8}
+];
+const MAT = {};
+MATERIALS.forEach(m=>{ m.stockInit=m.stock; MAT[m.id]=m; });
 
+/* ==========================================================================
+   3. STAV APLIKACE
+   ========================================================================== */
+const S = {
+  day:1, today:new Date(START.getTime()),
+  els:[], inbox:[], journal:[], screen:"MENU", ctx:{},
+  history:[],
+  selected:null,
+  finished:false,
+  acted:{md06:false, me57:false, me2m:false},
+  kpi:{ demandQty:0, metQty:0, extraCost:0, stoppages:0, stockValSum:0, stockDays:0, orders:0, urgencies:0 }
+};
+
+function elsOf(matId){ return S.els.filter(e=>e.mat===matId); }
+function isSupply(e){ return e.kind==="Objedn"||e.kind==="BANF"||e.kind==="ObjPl"||e.kind==="VyrZak"; }
+function isDemand(e){ return e.kind==="SekPoz"||e.kind==="ZakPoz"; }
+const KIND_RANK={Objedn:0,VyrZak:0,BANF:1,ObjPl:2,SekPoz:3,ZakPoz:3};
+function kindRank(e){ return Object.prototype.hasOwnProperty.call(KIND_RANK,e.kind)?KIND_RANK[e.kind]:9; }
+function byDate(a,b){
+  const t=a.date.getTime()-b.date.getTime();
+  if(t) return t;
+  return kindRank(a)-kindRank(b);   // ke stejnému dni nejdřív příjmy, pak výdeje
+}
+
+/* ---- lot sizing ---- */
+function lotSize(m, need){
+  let q;
+  if(m.lot==="FX"){ q = Math.ceil(need/m.fix)*m.fix; }
+  else { q = need; if(m.round) q = Math.ceil(q/m.round)*m.round; }
+  return Math.max(q, m.round||1);
+}
+
+/* ==========================================================================
+   4. GENERÁTOR VÝCHOZÍ SITUACE
+   ========================================================================== */
+function seedDemands(){
+  MATERIALS.forEach(m=>{
+    let dt = new Date(START.getTime());
+    for(let i=0;i<HORIZON+26;i++){
+      if(!isWeekend(dt) && rnd()<0.72){
+        const q = Math.round((m.base + (rnd()*2-1)*m.var) / (m.round||1)) * (m.round||1);
+        if(q>0){
+          S.els.push({
+            id:nextId("400"), mat:m.id, kind:"SekPoz", date:new Date(dt.getTime()),
+            qty:-q, ref:"VZ "+(61400+Math.round((dt.getTime()-START.getTime())/DAY_MS)*2), fixed:true
+          });
+        }
+      }
+      dt = addDays(dt,1);
+    }
+  });
+}
+
+function seedSupplies(){
+  /* Ručně zasazené objednávky — každá vytváří jinou pedagogickou situaci. */
+  const P = [
+    // materiál,      dní od startu, mn.,   pozn.
+    ["100-100",  6, 500],   // v pořádku
+    ["100-100", 24, 500],   // pozdě → výjimka 10 nebo 15 podle spotřeby
+    ["100-210",  2, 300],   // brzy
+    ["100-330", 16,  30],   // dlouhá dodací lhůta, kritický materiál
+    ["100-440",  9, 2000],
+    ["100-550", 30, 1200],  // pozdě
+    ["100-660",  3, 5000],
+    ["100-770", 27, 200]
+  ];
+  P.forEach(p=>{
+    const m=MAT[p[0]];
+    let dt = nextWorkday(addDays(START,p[1]));
+    S.els.push({
+      id:nextId("450"), mat:m.id, kind:"Objedn", date:dt, qty:p[2],
+      ref:"45"+String(100000+randInt(1,899999)), vendor:m.vendor,
+      fixed:true, urged:false, express:false, confirmed:true, orderedOn:addDays(START,-p[1])
+    });
+  });
+}
+
+/* ==========================================================================
+   5. PLÁNOVÁNÍ POTŘEBY (MRP)
+   ========================================================================== */
+/* Konec hodnoceného horizontu. Plán sahá dál (viz runMRP), aby na okraji
+   nevznikalo umělé podkrytí, ale disponent posuzuje jen tuto část. */
+function viewEnd(){ return addDays(S.today, 40); }
+
+function projection(m, skipId){
+  /* Vrátí časovou osu s disponibilním množstvím. */
+  const lim = viewEnd();
+  const els = elsOf(m.id).filter(e=>e.id!==skipId && e.date<=lim).sort(byDate);
+  let avail = m.stock;
+  const rows = [];
+  els.forEach(e=>{
+    avail += e.qty;
+    rows.push({el:e, avail:avail});
+  });
+  return rows;
+}
+
+function firstShortage(m, skipId){
+  const rows = projection(m, skipId);
+  for(const r of rows){
+    if(r.avail < m.safety) return r.el.date;
+  }
+  return null;
+}
+
+function runMRP(){
+  /* 1) zahodit dříve vygenerované plánované zakázky a návrhy přeplánování */
+  S.els = S.els.filter(e=>!(e.kind==="ObjPl" && e.auto));
+  S.els.forEach(e=>{ e.reschedTo=null; });
+
+  /* Velikost dávky je periodická (týdenní seskupení čisté potřeby) — tak, jak
+     to dělá reálné plánování. Bez seskupení by vznikla plánovaná zakázka ke
+     každému výdeji a seznam MRP by byl nečitelný. */
+  const planEnd = addDays(S.today, 46);
+  MATERIALS.forEach(m=>{
+    const els = elsOf(m.id).sort(byDate);
+    const firm = els.filter(e=>e.kind==="Objedn"||e.kind==="BANF");
+    const pulled = new Set();
+    let avail = m.stock;
+    const created = [];
+    for(let i=0;i<els.length;i++){
+      const e = els[i];
+      if(pulled.has(e.id)) continue;          // už započteno v rámci přeplánování
+      avail += e.qty;
+      if(!(e.qty<0 && avail < m.safety)) continue;
+      if(e.date > planEnd) break;
+
+      /* Kontrola přeplánování: existuje-li pozdější pevná dodávka, systém
+         nezakládá novou zakázku — navrhne přesunout tu stávající vpřed. */
+      const cand = firm.find(s=>!pulled.has(s.id) && s.date>e.date && diffDays(s.date,e.date)<=45);
+      if(cand){
+        pulled.add(cand.id);
+        cand.reschedTo = new Date(e.date.getTime());
+        avail += cand.qty;
+        continue;
+      }
+
+      /* čistá potřeba za celé krycí období (7 dní) */
+      const periodEnd = addDays(e.date, 6);
+      let need = m.safety - avail, look = avail;
+      for(let j=i+1; j<els.length && els[j].date<=periodEnd; j++){
+        if(pulled.has(els[j].id)) continue;
+        look += els[j].qty;
+        if(m.safety - look > need) need = m.safety - look;
+      }
+      const q = lotSize(m, need);
+      const availDate = e.date < S.today ? new Date(S.today.getTime()) : new Date(e.date.getTime());
+      created.push({
+        id:nextId("ObjPl"), mat:m.id, kind:"ObjPl", date:availDate, qty:q,
+        ref:"PL "+String(Math.round(availDate.getTime()/DAY_MS)).slice(-5),
+        start: addWorkdays(availDate, -m.plt), auto:true, vendor:m.vendor
+      });
+      avail += q;
+    }
+    S.els = S.els.concat(created);
+  });
+
+  computeExceptions();
+}
+
+const EXC = {
+  "06":{t:"06 Zahájení v minulosti", sev:"crit", help:"Termín zahájení plánované zakázky už uplynul. Objednejte ihned — nebo s expresní dodávkou."},
+  "10":{t:"10 Přeplánovat vpřed",    sev:"crit", help:"Dodávka přijde pozdě vůči potřebě. Urgujte u dodavatele nebo posuňte termín dopředu."},
+  "15":{t:"15 Přeplánovat vzad",     sev:"warn", help:"Dodávka přijde zbytečně brzy — váže kapitál. Posuňte termín dozadu."},
+  "20":{t:"20 Zrušit proces",        sev:"warn", help:"Dodávka není v horizontu potřeba. Zvažte storno."},
+  "30":{t:"30 Naplánovat proces",    sev:"warn", help:"Blíží se termín zahájení. Převeďte plánovanou zakázku na nákupní požadavek."}
+};
+
+function computeExceptions(){
+  S.els.forEach(e=>{ e.exc=null; e.prop=null; });
+  const lim = viewEnd();
+  MATERIALS.forEach(m=>{
+    const supplies = elsOf(m.id).filter(e=>isSupply(e) && e.date<=lim);
+
+    supplies.forEach(s=>{
+      /* 10 — dodávka přijde později, než ji potřebujeme */
+      if(s.reschedTo){ s.exc="10"; s.prop=s.reschedTo; return; }
+      /* 15 / 20 — dodávka přijde zbytečně brzy, případně není potřeba vůbec */
+      const needBy = firstShortage(m, s.id);
+      if(!needBy){
+        if(s.kind!=="ObjPl") s.exc="20";
+      } else if(needBy > s.date && diffDays(needBy, s.date) > 12){
+        s.exc="15"; s.prop=needBy;
+      }
+    });
+
+    /* 06 / 30 — plánovaná zakázka se blíží termínu zahájení, nebo ho minula */
+    supplies.filter(e=>e.kind==="ObjPl").forEach(s=>{
+      if(s.start <= S.today) s.exc="06";
+      else if(diffDays(s.start, S.today) <= 3) s.exc = s.exc || "30";
+    });
+  });
+}
+
+function matStatus(m){
+  const rows = projection(m,null);
+  let minAvail = m.stock, negative=false;
+  rows.forEach(r=>{ if(r.avail<minAvail) minAvail=r.avail; if(r.avail<0) negative=true; });
+  const excs = elsOf(m.id).filter(e=>e.exc).map(e=>e.exc);
+  const crit = negative || excs.some(x=>EXC[x].sev==="crit");
+  return {
+    minAvail:minAvail, negative:negative, excs:excs,
+    sev: crit ? "crit" : (excs.length ? "warn" : "good")
+  };
+}
+
+/* dosah zásoby ve dnech (do vyčerpání pod pojistnou zásobu, jen ze zásoby) */
+function coverDays(m){
+  const els = elsOf(m.id).filter(isDemand).sort(byDate);
+  let avail=m.stock;
+  for(const e of els){
+    avail += e.qty;
+    if(avail < m.safety) return Math.max(0, diffDays(e.date, S.today));
+  }
+  return 99;
+}
+
+/* ==========================================================================
+   6. AKCE DISPONENTA
+   ========================================================================== */
+function logJ(txt, sev){ S.journal.push({day:S.day, txt:txt, sev:sev||"info"}); }
+
+function convertToBANF(el){
+  const m = MAT[el.mat];
+  el.kind = "BANF";
+  el.auto = false;
+  el.fixed = true;
+  el.ref = "10"+String(randInt(100000,999999));
+  el.exc = null;
+  logJ("Plánovaná zakázka převedena na nákupní požadavek "+el.ref+" ("+m.id+")");
+  runMRP();
+  msg("good","Nákupní požadavek "+el.ref+" byl založen.");
+}
+
+function placeOrder(el, mode){
+  const m = MAT[el.mat];
+  const plt = mode==="express" ? Math.max(1,Math.round(m.plt*0.55)) : m.plt;
+  const surcharge = mode==="express" ? el.qty*m.price*0.22 : 0;
+  el.kind = "Objedn";
+  el.ref = "45"+String(randInt(100000,999999));
+  el.date = nextWorkday(addWorkdays(S.today, plt));
+  el.vendor = m.vendor;
+  el.express = mode==="express";
+  el.confirmed = true;
+  el.orderedOn = new Date(S.today.getTime());
+  el.exc = null;
+  el.reschedTo = null;
+  S.kpi.orders++;
+  if(surcharge){ S.kpi.extraCost += surcharge; }
+  logJ("Objednávka "+el.ref+" u "+VENDORS[m.vendor].name+" — "+num(el.qty)+" "+m.unit+", dodání "+fmtD(el.date)+(mode==="express"?" (expres)":""),"info");
+  runMRP();
+  msg(surcharge?"warn":"good",
+      "Objednávka "+el.ref+" založena, dodání "+fmtD(el.date)+
+      (surcharge?" · expresní příplatek "+money(surcharge):""));
+}
+
+function moveOrder(el, newDate){
+  const m = MAT[el.mat];
+  const shift = diffDays(newDate, el.date);
+  if(shift < 0){
+    /* posun dopředu — dodavatel nemusí souhlasit */
+    const ok = rnd() < (VENDORS[m.vendor].reliability - Math.min(.45, Math.abs(shift)*0.035));
+    if(!ok){
+      msg("crit","Dodavatel "+VENDORS[m.vendor].name+" posun na "+fmtD(newDate)+" nepotvrdil. Termín zůstává "+fmtD(el.date)+".");
+      logJ("Zamítnutý posun objednávky "+el.ref+" na "+fmtD(newDate),"warn");
+      return false;
+    }
+    const fee = el.qty*m.price*0.09;
+    S.kpi.extraCost += fee;
+    el.date = newDate; el.express = true;
+    logJ("Objednávka "+el.ref+" posunuta vpřed na "+fmtD(newDate)+" (příplatek "+money(fee)+")","warn");
+    msg("warn","Termín potvrzen na "+fmtD(newDate)+" · příplatek za urychlení "+money(fee));
+  } else {
+    el.date = newDate;
+    logJ("Objednávka "+el.ref+" posunuta vzad na "+fmtD(newDate));
+    msg("good","Termín objednávky "+el.ref+" změněn na "+fmtD(newDate)+".");
+  }
+  runMRP();
+  return true;
+}
+
+function cancelSupply(el){
+  const m = MAT[el.mat];
+  const daysToDel = diffDays(el.date, S.today);
+  let fee = 0;
+  if(el.kind==="Objedn" && daysToDel < m.plt*0.5){
+    fee = el.qty*m.price*0.12;
+    S.kpi.extraCost += fee;
+  }
+  S.els = S.els.filter(x=>x.id!==el.id);
+  logJ("Stornováno: "+el.kind+" "+el.ref+" ("+m.id+")"+(fee?" — storno poplatek "+money(fee):""), fee?"warn":"info");
+  runMRP();
+  msg(fee?"warn":"good","Prvek "+el.ref+" byl stornován."+(fee?" Storno poplatek "+money(fee)+".":""));
+}
+
+function urgeOrder(el){
+  if(el.urged){ msg("warn","Urgence u této objednávky již byla odeslána."); return; }
+  el.urged = true;
+  S.kpi.urgencies++;
+  S.kpi.extraCost += 350;
+  logJ("Urgence odeslána k objednávce "+el.ref);
+  msg("good","Urgence odeslána dodavateli "+VENDORS[el.vendor].name+". Pravděpodobnost včasného dodání vzrostla.");
+}
+
+/* ==========================================================================
+   7. UDÁLOSTI A UZÁVĚRKA DNE
+   ========================================================================== */
+const EVENT_DECK = [
+  {k:"delay", w:3},
+  {k:"rush",  w:2},
+  {k:"quality",w:1},
+  {k:"forecast",w:2},
+  {k:"info",  w:1}
+];
+
+function drawEvent(){
+  const pool=[]; EVENT_DECK.forEach(e=>{ for(let i=0;i<e.w;i++) pool.push(e.k); });
+  return pick(pool);
+}
+
+function makeEvent(){
+  const kind = drawEvent();
+  const m = pick(MATERIALS);
+  const v = VENDORS[m.vendor];
+  if(kind==="delay"){
+    const cand = elsOf(m.id).filter(e=>e.kind==="Objedn" && e.date>S.today);
+    if(!cand.length) return null;
+    const el = pick(cand);
+    const slip = randInt(3,9);
+    el.date = nextWorkday(addDays(el.date, slip));
+    el.confirmed = false;
+    return {
+      sev:"crit", from:v.name+" <expedice@"+m.vendor.toLowerCase()+".cz>",
+      subj:"Změna potvrzeného termínu — objednávka "+el.ref,
+      txt:"Dobrý den, u objednávky "+el.ref+" ("+m.id+" "+m.txt+", "+num(el.qty)+" "+m.unit+
+          ") musíme posunout dodání o "+slip+" dní na "+fmtD(el.date)+
+          ". Důvod: výpadek na lince předchozí operace. Prosíme o potvrzení.",
+      mat:m.id
+    };
+  }
+  if(kind==="rush"){
+    const q = Math.round(m.base*randInt(2,4));
+    const when = nextWorkday(addWorkdays(S.today, randInt(3,8)));
+    S.els.push({id:nextId("500"), mat:m.id, kind:"ZakPoz", date:when, qty:-q, ref:"ZAK "+randInt(30000,39999), fixed:true});
+    return {
+      sev:"warn", from:"Obchodní oddělení <prodej@zavod1000.cz>",
+      subj:"Expresní zakázka — dodatečná potřeba "+m.id,
+      txt:"Přijali jsme urgentní zakázku pro klíčového zákazníka. Na "+fmtD(when)+
+          " potřebujeme navíc "+num(q)+" "+m.unit+" materiálu "+m.id+" ("+m.txt+
+          "). Potřeba je již zavedena v plánu — prověřte prosím krytí v MD04.",
+      mat:m.id
+    };
+  }
+  if(kind==="quality"){
+    const loss = Math.min(m.stock, Math.round(m.base*randInt(1,3)));
+    if(loss<=0) return null;
+    m.stock -= loss;
+    return {
+      sev:"crit", from:"Řízení jakosti <qm@zavod1000.cz>",
+      subj:"Blokace šarže — "+m.id,
+      txt:"Při vstupní kontrole byla zablokována šarže materiálu "+m.id+" ("+m.txt+
+          ") v množství "+num(loss)+" "+m.unit+". Množství bylo odepsáno z volně použitelné zásoby. "+
+          "Prověřte dopad na krytí potřeb.",
+      mat:m.id
+    };
+  }
+  if(kind==="forecast"){
+    const els = elsOf(m.id).filter(e=>e.kind==="SekPoz" && e.date>addWorkdays(S.today,4));
+    if(els.length<3) return null;
+    const factor = rnd()<0.5 ? 0.7 : 1.35;
+    els.slice(0,6).forEach(e=>{ e.qty = -Math.max(1, Math.round(Math.abs(e.qty)*factor)); });
+    return {
+      sev:"warn", from:"Plánování výroby <ppc@zavod1000.cz>",
+      subj:"Úprava výrobního programu — "+m.id,
+      txt:"Výrobní program byl přepočítán. Sekundární potřeby materiálu "+m.id+" se v následujících dnech "+
+          (factor>1?"zvyšují":"snižují")+" přibližně o "+Math.round(Math.abs(factor-1)*100)+" %. "+
+          "Plánování potřeby už s novými čísly pracuje.",
+      mat:m.id
+    };
+  }
+  return {
+    sev:"info", from:"Nákup <nakup@zavod1000.cz>",
+    subj:"Aktualizace ceníku — "+v.name,
+    txt:"Dodavatel "+v.name+" avizuje od příštího čtvrtletí úpravu cen. Na běžící objednávky to nemá vliv, "+
+        "u nových požadavků zvažte rozložení objednacích množství.",
+    mat:m.id
+  };
+}
+
+function closeDay(){
+  if(S.finished) return;
+  const report = {day:S.day, date:new Date(S.today.getTime()), receipts:[], issues:[], shortages:[], events:[]};
+
+  /* 1) příjmy zboží */
+  const arriving = S.els.filter(e=>e.kind==="Objedn" && e.date<=S.today);
+  arriving.forEach(el=>{
+    const m = MAT[el.mat];
+    let p = VENDORS[m.vendor].reliability + (el.urged?0.12:0);
+    if(rnd() < p){
+      m.stock += el.qty;
+      S.els = S.els.filter(x=>x.id!==el.id);
+      report.receipts.push({mat:m.id, qty:el.qty, ref:el.ref, unit:m.unit});
+    } else {
+      const slip = randInt(1,4);
+      el.date = nextWorkday(addDays(S.today, slip));
+      el.confirmed = false;
+      report.events.push({sev:"warn", txt:"Objednávka "+el.ref+" ("+m.id+") nebyla dodána — nový termín "+fmtD(el.date)+"."});
+    }
+  });
+
+  /* 2) výdej do výroby */
+  const dueDemands = S.els.filter(e=>isDemand(e) && e.date<=S.today).sort(byDate);
+  dueDemands.forEach(el=>{
+    const m = MAT[el.mat];
+    const need = -el.qty;
+    S.kpi.demandQty += need*m.price;
+    if(m.stock >= need){
+      m.stock -= need;
+      S.kpi.metQty += need*m.price;
+      S.els = S.els.filter(x=>x.id!==el.id);
+      report.issues.push({mat:m.id, qty:need, unit:m.unit});
+    } else {
+      const got = Math.max(0, m.stock);
+      m.stock -= got;
+      S.kpi.metQty += got*m.price;
+      el.qty = -(need-got);
+      S.kpi.stoppages++;
+      report.shortages.push({mat:m.id, missing:need-got, unit:m.unit, ref:el.ref});
+      S.kpi.extraCost += (need-got)*m.price*0.35;   // náklady prostoje
+    }
+  });
+
+  /* 3) hodnota zásoby pro průměr */
+  let val=0; MATERIALS.forEach(m=>{ val += m.stock*m.price; });
+  S.kpi.stockValSum += val; S.kpi.stockDays++;
+
+  /* 4) události */
+  const nEv = randInt(1,2);
+  for(let i=0;i<nEv;i++){
+    const ev = makeEvent();
+    if(ev){ ev.id=nextId("MB"); ev.day=S.day+1; ev.unread=true; S.inbox.unshift(ev); }
+  }
+
+  /* 5) posun data */
+  S.history.push(report);
+  S.day++;
+  S.today = nextWorkday(addDays(S.today,1));
+  S.acted = {md06:false, me57:false, me2m:false};
+  S.selected = null;
+
+  if(S.day > MAX_DAYS){ S.finished = true; }
+  runMRP();
+  return report;
+}
+
+/* ==========================================================================
+   8. VYHODNOCENÍ
+   ========================================================================== */
+function evaluate(){
+  const service = S.kpi.demandQty>0 ? (S.kpi.metQty/S.kpi.demandQty)*100 : 100;
+  const avgStock = S.kpi.stockDays ? S.kpi.stockValSum/S.kpi.stockDays : 0;
+  const baseStock = MATERIALS.reduce((a,m)=>a+m.stockInit*m.price,0);
+  const stockIdx = baseStock ? (avgStock/baseStock)*100 : 100;
+  /* skóre: servis váží nejvíc, pak vícenáklady, pak vázaný kapitál */
+  const sService = Math.max(0,(service-80)/20)*55;
+  const sCost    = Math.max(0, 1 - S.kpi.extraCost/260000)*25;
+  const sStock   = Math.max(0, 1 - Math.abs(stockIdx-95)/85)*20;
+  const score = Math.round(Math.max(0,Math.min(100, sService+sCost+sStock)));
+  return {service:service, avgStock:avgStock, stockIdx:stockIdx, score:score,
+          sService:sService, sCost:sCost, sStock:sStock};
+}
+
+/* ==========================================================================
+   9. UI — INFRASTRUKTURA
+   ========================================================================== */
+const work = document.getElementById("work");
+const modalHost = document.getElementById("modalHost");
+
+function msg(sev, text){
+  const bar = document.getElementById("statusbar");
+  bar.className = "statusbar sb-"+({good:"good",warn:"warn",crit:"crit",info:"info"}[sev]||"info");
+  document.getElementById("sbIc").textContent = sev==="good"?"✓":sev==="crit"?"!":sev==="warn"?"!":"i";
+  document.getElementById("sbMsg").textContent = text;
+}
+
+const SCREENS = [
+  {code:"MD06", name:"Seznam MRP — zpracování výjimek",  badge:()=>countExc()},
+  {code:"MD04", name:"Stav zásob a potřeb",              badge:()=>0},
+  {code:"ME57", name:"Přiřazení a zpracování požadavků", badge:()=>countBANF()},
+  {code:"ME2M", name:"Objednávky k materiálu",           badge:()=>countLate()},
+  {code:"MB52", name:"Zásoby na skladě",                 badge:()=>0},
+  {code:"SBWP", name:"Schránka příjmu zpráv",            badge:()=>S.inbox.filter(x=>x.unread).length},
+  {code:"ZDEN", name:"Uzávěrka pracovního dne",          badge:()=>0}
+];
+
+function countExc(){ return S.els.filter(e=>e.exc && EXC[e.exc].sev==="crit").length; }
+function countBANF(){ return S.els.filter(e=>e.kind==="BANF").length; }
+function countLate(){
+  return S.els.filter(e=>e.kind==="Objedn" && (!e.confirmed || e.exc==="10")).length;
+}
+
+function go(code, ctx){
+  code = String(code||"").toUpperCase().replace(/^\/N/,"").trim();
+  if(code==="" || code==="MENU" || code==="SESSION_MANAGER"){ S.screen="MENU"; }
+  else if(SCREENS.some(s=>s.code===code)){ S.screen=code; }
+  else { msg("crit","Transakce "+code+" neexistuje (zpráva SY 002)."); return; }
+  S.ctx = ctx||{};
+  S.selected = null;
+  render();
+}
+
+/* ==========================================================================
+   10. UI — RÁM
+   ========================================================================== */
+function renderChrome(){
+  document.getElementById("dayNum").textContent = Math.min(S.day, MAX_DAYS);
+  document.getElementById("dayOf").textContent = "z "+MAX_DAYS;
+  document.getElementById("dayDate").textContent = fmtDLong(S.today);
+  document.getElementById("clock").textContent = fmtD(S.today)+" · disponent 101";
+  const sc = SCREENS.find(s=>s.code===S.screen);
+  document.getElementById("screenName").textContent = sc ? sc.code+" — "+sc.name : "SAP Easy Access";
+
+  /* navigace */
+  const nav = document.getElementById("navList");
+  nav.innerHTML = SCREENS.map(s=>{
+    const b = s.badge();
+    const cls = b ? (s.code==="MD06"||s.code==="ME2M" ? "crit":"warn") : "";
+    return '<button class="navitem'+(S.screen===s.code?" active":"")+'" data-go="'+s.code+'" type="button">'+
+      '<span class="tcode">'+s.code+'</span><span>'+esc(s.name.split("—")[0].trim())+'</span>'+
+      (b?'<span class="navbadge '+cls+'">'+b+'</span>':'')+'</button>';
+  }).join("");
+
+  /* denní úkony */
+  const tasks = dailyTasks();
+  document.getElementById("taskList").innerHTML = tasks.map(t=>
+    '<li class="'+(t.done?"done":"")+'"><span class="tick">'+(t.done?"✓":"")+'</span>'+
+    '<span class="tlabel">'+esc(t.label)+'</span>'+(t.count!==undefined?'<span class="tcount">'+t.count+'</span>':'')+'</li>'
+  ).join("");
+
+  /* ukazatele */
+  const ev = evaluate();
+  const stockVal = MATERIALS.reduce((a,m)=>a+m.stock*m.price,0);
+  const kcls = v=>v>=97?"good":v>=92?"warn":"crit";
+  document.getElementById("kpiGrid").innerHTML =
+    kpiTile("Servis", num(ev.service,1)+" %", kcls(ev.service), "krytí potřeb hodnotově") +
+    kpiTile("Prostoje", String(S.kpi.stoppages), S.kpi.stoppages?"crit":"good", "nekryté výdeje") +
+    kpiTile("Zásoba", num(stockVal/1000)+" tis.", "", "hodnota skladu") +
+    kpiTile("Vícenáklady", num(S.kpi.extraCost/1000)+" tis.", S.kpi.extraCost>90000?"crit":S.kpi.extraCost>35000?"warn":"good", "expres, storna, prostoje");
+
+  document.getElementById("btnClose").disabled = S.finished;
+  document.getElementById("sbRight").textContent = "Den "+Math.min(S.day,MAX_DAYS)+"/"+MAX_DAYS+" · výjimek: "+S.els.filter(e=>e.exc).length;
+}
+function kpiTile(l,v,cls,s){
+  return '<div class="kpi"><span class="k-l">'+esc(l)+'</span><span class="k-v '+cls+'">'+esc(v)+
+         '</span><span class="k-s">'+esc(s)+'</span></div>';
+}
+
+function dailyTasks(){
+  const critExc = countExc();
+  const banf = countBANF();
+  const late = S.els.filter(e=>e.kind==="Objedn" && !e.confirmed).length;
+  const unread = S.inbox.filter(x=>x.unread).length;
+  return [
+    {label:"Vyhodnotit výjimky v seznamu MRP", done:critExc===0, count:critExc},
+    {label:"Převést požadavky na objednávky",  done:banf===0,    count:banf},
+    {label:"Prověřit nepotvrzené dodávky",     done:late===0,    count:late},
+    {label:"Vyřídit schránku zpráv",           done:unread===0,  count:unread},
+    {label:"Provést uzávěrku dne",             done:false}
+  ];
+}
+
+/* ==========================================================================
+   11. UI — OBRAZOVKY
+   ========================================================================== */
+function render(){
+  renderChrome();
+  const map = {MENU:scrMenu, MD06:scrMD06, MD04:scrMD04, ME57:scrME57, ME2M:scrME2M,
+               MB52:scrMB52, SBWP:scrSBWP, ZDEN:scrZDEN};
+  work.innerHTML = '<div class="screen">'+ (S.finished && S.screen!=="MENU" ? scrFinal() : map[S.screen]()) +'</div>';
+  work.scrollTop = 0;
+}
+
+function head(code, title, sub){
+  return '<div class="screen-head"><h1 class="screen-h1"><span class="tcode-chip">'+code+'</span>'+esc(title)+'</h1></div>'+
+         (sub?'<p class="screen-sub">'+sub+'</p>':'');
+}
+
+/* ---------- MENU ---------- */
+function scrMenu(){
+  if(S.finished) return scrFinal();
+  const st = MATERIALS.map(m=>({m:m, s:matStatus(m)}));
+  const crit = st.filter(x=>x.s.sev==="crit").length;
+  const warn = st.filter(x=>x.s.sev==="warn").length;
+  return head("SAP Easy Access","Pracoviště disponenta 101",
+    "Závod 1000 Plzeň, disponentská skupina 101 — nakupované díly a hutní materiál. "+
+    "Vaším úkolem je každý den udržet krytí výrobních potřeb a přitom nevázat zbytečně kapitál v zásobách.")+
+  (S.day===1 ? '<div class="note"><strong>Jak se pracuje.</strong> Začněte v <span class="mono">MD06</span> — systém tam vypíše materiály se zprávami výjimek. '+
+    'Konkrétní situaci rozeberete v <span class="mono">MD04</span>, kde se rozhodujete nad jednotlivými prvky plánování potřeby. '+
+    'Nákupní požadavky převedete na objednávky v <span class="mono">ME57</span>, běžící dodávky hlídáte v <span class="mono">ME2M</span>. '+
+    'Den ukončíte transakcí <span class="mono">ZDEN</span> — teprve pak systém provede příjmy, výdeje a přepočítá plán.</div>' : "")+
+  '<div class="tiles">'+
+    tile("Materiálů v disponentské skupině", String(MATERIALS.length), "kmenové záznamy 100-100 až 100-770")+
+    tile("Kritických situací", String(crit), crit?"hrozí nekryté potřeby":"bez podkrytí", crit?"crit":"good")+
+    tile("Materiálů se zprávou výjimky", String(warn+crit), "vyžadují rozhodnutí")+
+    tile("Nepřečtených zpráv", String(S.inbox.filter(x=>x.unread).length), "schránka SBWP")+
+  '</div>'+
+  '<h4 class="sub">Přehled disponentské skupiny</h4>'+
+  '<div class="card"><div class="card-b flush"><div class="tblwrap"><table class="grid">'+
+    '<thead><tr><th>Materiál</th><th>Krátký text</th><th style="text-align:right">Zásoba</th>'+
+    '<th style="text-align:right">Pojistná</th><th>Dosah</th><th>Stav</th></tr></thead><tbody>'+
+    st.map(x=>{
+      const m=x.m, cov=coverDays(m);
+      const pct=Math.min(100, (cov/20)*100);
+      const cls = cov<=3?"crit":cov<=7?"warn":"good";
+      return '<tr class="clickable" data-md04="'+m.id+'">'+
+        '<td class="code stripe s-'+x.s.sev+'">'+m.id+'</td><td class="wrap">'+esc(m.txt)+'</td>'+
+        '<td class="num">'+num(m.stock)+' '+m.unit+'</td><td class="num">'+num(m.safety)+'</td>'+
+        '<td><span class="meter"><span class="meter-track"><span class="meter-fill '+cls+'" style="width:'+pct+'%"></span></span>'+
+        '<span class="meter-v">'+(cov>=99?"20+ d":cov+" d")+'</span></span></td>'+
+        '<td>'+statusPill(x.s)+'</td></tr>';
+    }).join("")+
+  '</tbody></table></div>'+
+  '<div class="legend"><span><span class="dot" style="color:var(--good)"></span>bez výjimek</span>'+
+  '<span><span class="dot" style="color:var(--warn)"></span>zpráva výjimky k prověření</span>'+
+  '<span><span class="dot" style="color:var(--crit)"></span>hrozí podkrytí nebo termín v minulosti</span>'+
+  '<span>Dosah = počet dní do poklesu pod pojistnou zásobu</span></div></div></div>'+
+  '<div class="kbdhelp"><span>Do pole Transakce lze psát kódy přímo — např. <span class="mono">MD06</span> nebo <span class="mono">/nME57</span>.</span></div>';
+}
+function tile(l,v,s,cls){
+  return '<div class="tile"><span class="t-l">'+esc(l)+'</span><span class="t-v'+(cls?" "+cls:"")+'" style="'+(cls?"color:var(--"+cls+")":"")+'">'+esc(v)+
+         '</span><span class="t-s">'+esc(s)+'</span></div>';
+}
+function statusPill(s){
+  if(s.sev==="crit") return '<span class="pill crit"><span class="dot"></span>kritické</span>';
+  if(s.sev==="warn") return '<span class="pill warn"><span class="dot"></span>k prověření</span>';
+  return '<span class="pill good"><span class="dot"></span>v pořádku</span>';
+}
+
+/* ---------- MD06 ---------- */
+function scrMD06(){
+  const rows = MATERIALS.map(m=>({m:m,s:matStatus(m),els:elsOf(m.id).filter(e=>e.exc)}))
+                        .filter(x=>x.els.length || x.s.negative);
+  let body;
+  if(!rows.length){
+    body = '<div class="empty">Seznam MRP neobsahuje žádné zprávy výjimky. Plán je v tomto okamžiku konzistentní.</div>';
+  } else {
+    body = '<div class="tblwrap"><table class="grid"><thead><tr>'+
+      '<th>Materiál</th><th>Krátký text</th><th style="text-align:right">Min. disp. mn.</th>'+
+      '<th>Zprávy výjimky</th><th style="text-align:right">Prvků</th><th></th></tr></thead><tbody>'+
+      rows.map(x=>{
+        const uniq=[...new Set(x.els.map(e=>e.exc))].sort();
+        return '<tr class="clickable" data-md04="'+x.m.id+'">'+
+          '<td class="code stripe s-'+x.s.sev+'">'+x.m.id+'</td>'+
+          '<td class="wrap">'+esc(x.m.txt)+'</td>'+
+          '<td class="num'+(x.s.minAvail<0?" negative":"")+'">'+num(x.s.minAvail)+' '+x.m.unit+'</td>'+
+          '<td>'+uniq.map(c=>'<span class="pill '+EXC[c].sev+'">'+EXC[c].t+'</span>').join(" ")+'</td>'+
+          '<td class="num">'+x.els.length+'</td>'+
+          '<td><span class="pill info">MD04 →</span></td></tr>';
+      }).join("")+'</tbody></table></div>';
+  }
+  return head("MD06","Seznam MRP — hromadné zobrazení",
+    "Systém po každém plánovacím běhu vypíše materiály, u kterých plán nesedí. "+
+    "Zpráva výjimky není chyba — je to <strong>návrh k rozhodnutí</strong>. Kliknutím na řádek otevřete detail v MD04.")+
+  '<div class="card"><div class="card-h"><h3>Disponent 101 · závod 1000</h3>'+
+  '<span class="hint">'+cnt(rows.length,"materiál se zprávou výjimky","materiály se zprávou výjimky","materiálů se zprávou výjimky")+'</span></div>'+
+  '<div class="card-b flush">'+body+
+  '<div class="legend">'+Object.keys(EXC).map(c=>'<span><span class="pill '+EXC[c].sev+'">'+EXC[c].t+'</span></span>').join("")+'</div>'+
+  '</div></div>'+
+  '<div class="note"><strong>Na co se dívat.</strong> Nejdřív materiály s červeným pruhem — tam už hrozí, že výroba nedostane materiál. '+
+  'Zprávy 15 a 20 řešte až potom: nestojí výrobu, ale drží peníze v zásobě.</div>';
+}
+
+/* ---------- MD04 ---------- */
+function scrMD04(){
+  const matId = S.ctx.mat || MATERIALS[0].id;
+  const m = MAT[matId];
+  const rows = projection(m,null);
+  const st = matStatus(m);
+  const sel = S.selected ? S.els.find(e=>e.id===S.selected) : null;
+
+  const opts = MATERIALS.map(x=>'<option value="'+x.id+'"'+(x.id===matId?" selected":"")+'>'+x.id+" — "+esc(x.txt)+'</option>').join("");
+
+  let tbody = '<tr><td class="stripe s-none code">'+fmtD(S.today)+'</td>'+
+    '<td class="code">ZÁSOBA</td><td class="wrap">Volně použitelná zásoba, závod 1000</td>'+
+    '<td class="num"></td><td class="num">'+num(m.stock)+'</td><td></td><td></td><td></td></tr>';
+
+  rows.forEach(r=>{
+    const e=r.el;
+    const late = e.date < S.today;
+    const sev = e.exc ? EXC[e.exc].sev : (r.avail<0 ? "crit" : "none");
+    let dataTxt;
+    if(e.kind==="SekPoz") dataTxt = "Sekundární potřeba · "+esc(e.ref);
+    else if(e.kind==="ZakPoz") dataTxt = "Zákaznická zakázka · "+esc(e.ref);
+    else if(e.kind==="Objedn") dataTxt = "Objednávka "+esc(e.ref)+(e.express?" · expres":"")+(e.urged?" · urgováno":"")+(e.confirmed?"":" · nepotvrzeno");
+    else if(e.kind==="BANF") dataTxt = "Nákupní požadavek "+esc(e.ref);
+    else if(e.kind==="ObjPl") dataTxt = "Plánovaná zakázka · zahájení "+fmtD(e.start);
+    else dataTxt = esc(e.ref);
+    tbody += '<tr class="clickable'+(S.selected===e.id?" sel":"")+'" data-sel="'+e.id+'">'+
+      '<td class="stripe s-'+sev+' code'+(late?" negative":"")+'">'+fmtD(e.date)+'</td>'+
+      '<td class="code">'+kindLabel(e.kind)+'</td>'+
+      '<td class="wrap">'+dataTxt+'</td>'+
+      '<td class="num'+(e.qty<0?"":"")+'">'+(e.qty>0?"+":"")+num(e.qty)+'</td>'+
+      '<td class="num'+(r.avail<m.safety?" negative":"")+'">'+num(r.avail)+'</td>'+
+      '<td>'+(e.vendor?esc(VENDORS[e.vendor].name):"")+'</td>'+
+      '<td>'+(e.exc?'<span class="pill '+EXC[e.exc].sev+'">'+EXC[e.exc].t+'</span>':"")+'</td>'+
+      '<td class="num">'+(e.prop?fmtD(e.prop):"")+'</td></tr>';
+  });
+
+  const actions = sel ? md04Actions(sel) : '<span style="color:var(--ink-3);font-size:12px">Vyberte řádek v tabulce, zpřístupní se dostupné akce.</span>';
+
+  return head("MD04","Stav zásob a potřeb",
+    "Časová osa všech prvků plánování potřeby. Sloupec <em>Disponibilní množství</em> ukazuje, "+
+    "kolik materiálu k danému dni zbude — jakmile klesne pod pojistnou zásobu, systém hlásí výjimku.")+
+  '<div class="card"><div class="card-h"><h3>Materiál</h3>'+
+    '<select id="matSel" style="border:1px solid var(--line);border-radius:2px;background:var(--panel);padding:3px 6px;font-family:var(--data);font-size:12px;max-width:420px">'+opts+'</select>'+
+    '<span class="hint">'+statusPill(st)+'</span></div>'+
+    '<div class="fields">'+
+      field("Materiál", m.id)+field("Druh materiálu", m.type)+field("Základní MJ", m.unit)+
+      field("Disponent", "101")+field("Pojistná zásoba", num(m.safety)+" "+m.unit)+
+      field("Velikost dávky", m.lot==="FX"?"FX · pevná "+num(m.fix):"EX · přesná"+(m.round?" · zaokr. "+m.round:""))+
+      field("Plánovaná dodací lhůta", m.plt+" prac. dní")+
+      field("Cena", num(m.price,2)+" Kč / "+m.unit)+
+      field("Stálý dodavatel", VENDORS[m.vendor].name)+
+      field("Min. disp. množství", num(st.minAvail)+" "+m.unit)+
+    '</div>'+
+    '<div class="tblwrap"><table class="grid"><thead><tr>'+
+    '<th>Datum</th><th>Prvek</th><th>Data MRP prvku</th><th style="text-align:right">Přijaté/pot. mn.</th>'+
+    '<th style="text-align:right">Disp. množství</th><th>Dodavatel</th><th>Zpráva výjimky</th><th>Návrh</th>'+
+    '</tr></thead><tbody>'+tbody+'</tbody></table></div>'+
+    '<div class="actionbar">'+actions+'</div>'+
+  '</div>'+
+  (sel && sel.exc ? '<div class="note '+(EXC[sel.exc].sev==="crit"?"crit":"warn")+'"><strong>'+EXC[sel.exc].t+'.</strong> '+esc(EXC[sel.exc].help)+
+    (sel.prop?' Systém navrhuje termín <span class="mono">'+fmtD(sel.prop)+'</span>.':'')+'</div>' : "")+
+  (st.negative ? '<div class="note crit"><strong>Pozor — záporné disponibilní množství.</strong> V průběhu horizontu není potřeba kryta. '+
+    'Pokud to nevyřešíte do dne spotřeby, výroba se zastaví a náklady prostoje se promítnou do vícenákladů.</div>' : "");
+}
+function kindLabel(k){
+  return {SekPoz:"SekPož", ZakPoz:"ZákPož", Objedn:"Objedn", BANF:"BANF", ObjPl:"ObjPl", VyrZak:"VýrZak"}[k]||k;
+}
+function field(l,v){ return '<div class="field"><span class="f-l">'+esc(l)+'</span><span class="f-v">'+esc(v)+'</span></div>'; }
+
+function md04Actions(e){
+  const m = MAT[e.mat];
+  let b = "";
+  if(e.kind==="ObjPl"){
+    b += btn("act-banf","Převést na nákupní požadavek","primary");
+    b += btn("act-order","Objednat rovnou (ME21N)");
+  }
+  if(e.kind==="BANF"){
+    b += btn("act-order","Přiřadit dodavatele a objednat","primary");
+    b += btn("act-cancel","Storno požadavku");
+  }
+  if(e.kind==="Objedn"){
+    b += btn("act-move","Změnit termín dodání (ME22N)","primary");
+    b += btn("act-urge","Odeslat urgenci");
+    b += btn("act-cancel","Storno objednávky");
+  }
+  if(isDemand(e)){
+    b += '<span style="color:var(--ink-3);font-size:12px">Potřeba z výrobního plánu — disponent ji nemění. Zajistěte krytí na straně dodávek.</span>';
+  }
+  b += '<span class="sel-info">'+kindLabel(e.kind)+' '+esc(e.ref)+' · '+num(e.qty)+' '+m.unit+'</span>';
+  return b;
+}
+function btn(id,label,cls){ return '<button class="tbtn '+(cls||"")+'" data-act="'+id+'" type="button">'+esc(label)+'</button>'; }
+
+/* ---------- ME57 ---------- */
+function scrME57(){
+  const banfs = S.els.filter(e=>e.kind==="BANF").sort(byDate);
+  const plans = S.els.filter(e=>e.kind==="ObjPl" && (e.exc==="06"||e.exc==="30")).sort((a,b)=>a.start-b.start);
+  return head("ME57","Přiřazení a zpracování nákupních požadavků",
+    "Nákupní požadavek je jen interní žádost — dokud z něj neuděláte objednávku, dodavatel o ničem neví. "+
+    "Vedle toho tu najdete plánované zakázky, jejichž termín zahájení už nastal.")+
+  '<div class="card"><div class="card-h"><h3>Nepřiřazené nákupní požadavky</h3><span class="hint">'+cnt(banfs.length,"položka","položky","položek")+'</span></div>'+
+  '<div class="card-b flush">'+ (banfs.length ? reqTable(banfs,false) :
+    '<div class="empty">Žádné otevřené nákupní požadavky.</div>') +'</div></div>'+
+  '<div class="card"><div class="card-h"><h3>Plánované zakázky k převodu</h3><span class="hint">'+cnt(plans.length,"položka","položky","položek")+'</span></div>'+
+  '<div class="card-b flush">'+ (plans.length ? reqTable(plans,true) :
+    '<div class="empty">Žádná plánovaná zakázka nemá termín zahájení v dosahu.</div>') +'</div></div>';
+}
+function reqTable(list, isPlan){
+  return '<div class="tblwrap"><table class="grid"><thead><tr>'+
+    '<th>Doklad</th><th>Materiál</th><th>Krátký text</th><th style="text-align:right">Množství</th>'+
+    '<th>'+(isPlan?"Zahájení":"Termín dodání")+'</th><th>Dodavatel</th><th>Hodnota</th><th></th></tr></thead><tbody>'+
+    list.map(e=>{
+      const m=MAT[e.mat];
+      const sev = e.exc?EXC[e.exc].sev:"none";
+      const dt = isPlan? e.start : e.date;
+      const late = dt <= S.today;
+      return '<tr>'+
+        '<td class="code stripe s-'+sev+'">'+esc(e.ref)+'</td>'+
+        '<td class="code">'+m.id+'</td><td class="wrap">'+esc(m.txt)+'</td>'+
+        '<td class="num">'+num(e.qty)+' '+m.unit+'</td>'+
+        '<td class="code'+(late?" negative":"")+'">'+fmtD(dt)+'</td>'+
+        '<td>'+esc(VENDORS[m.vendor].name)+'</td>'+
+        '<td class="num">'+money(e.qty*m.price)+'</td>'+
+        '<td><button class="tbtn primary" data-order="'+e.id+'" type="button">'+(isPlan?"Objednat":"Objednat")+'</button> '+
+        '<button class="tbtn" data-md04="'+m.id+'" type="button">MD04</button></td></tr>';
+    }).join("")+'</tbody></table></div>';
+}
+
+/* ---------- ME2M ---------- */
+function scrME2M(){
+  const pos = S.els.filter(e=>e.kind==="Objedn").sort(byDate);
+  return head("ME2M","Objednávky k materiálu — sledování dodávek",
+    "Otevřené objednávky se sledují průběžně. Nepotvrzený termín nebo zpráva výjimky 10 znamená, "+
+    "že dodávka nejspíš nestihne pokrýt potřebu.")+
+  '<div class="card"><div class="card-h"><h3>Otevřené objednávky · disponent 101</h3><span class="hint">'+cnt(pos.length,"objednávka","objednávky","objednávek")+'</span></div>'+
+  '<div class="card-b flush">'+
+  (pos.length ? '<div class="tblwrap"><table class="grid"><thead><tr>'+
+    '<th>Objednávka</th><th>Materiál</th><th style="text-align:right">Množství</th><th>Dodání</th>'+
+    '<th>Dodavatel</th><th>Spolehlivost</th><th>Stav</th><th></th></tr></thead><tbody>'+
+    pos.map(e=>{
+      const m=MAT[e.mat], v=VENDORS[e.vendor];
+      const rel = Math.round((v.reliability+(e.urged?.12:0))*100);
+      const relCls = rel>=90?"good":rel>=80?"warn":"crit";
+      const sev = e.exc?EXC[e.exc].sev:(e.confirmed?"good":"warn");
+      return '<tr>'+
+        '<td class="code stripe s-'+sev+'">'+esc(e.ref)+'</td>'+
+        '<td class="code">'+m.id+'</td><td class="num">'+num(e.qty)+' '+m.unit+'</td>'+
+        '<td class="code">'+fmtD(e.date)+'</td><td>'+esc(v.name)+'</td>'+
+        '<td><span class="meter"><span class="meter-track"><span class="meter-fill '+relCls+'" style="width:'+rel+'%"></span></span>'+
+        '<span class="meter-v">'+rel+' %</span></span></td>'+
+        '<td>'+(e.exc?'<span class="pill '+EXC[e.exc].sev+'">'+EXC[e.exc].t+'</span>':
+                e.confirmed?'<span class="pill good">potvrzeno</span>':'<span class="pill warn">nepotvrzeno</span>')+
+          (e.urged?' <span class="pill info">urgováno</span>':'')+
+          (e.express?' <span class="pill mute">expres</span>':'')+'</td>'+
+        '<td><button class="tbtn" data-urge="'+e.id+'" type="button"'+(e.urged?" disabled":"")+'>Urgovat</button> '+
+        '<button class="tbtn" data-md04="'+m.id+'" type="button">MD04</button></td></tr>';
+    }).join("")+'</tbody></table></div>'
+   : '<div class="empty">Žádné otevřené objednávky.</div>')+
+  '</div></div>'+
+  '<div class="note"><strong>Urgence není zdarma.</strong> Stojí 350 Kč administrativy a u dodavatele ji lze uplatnit jen jednou. '+
+  'Zvyšuje pravděpodobnost včasného dodání zhruba o 12 procentních bodů — má smysl tam, kde by zpoždění zastavilo výrobu.</div>';
+}
+
+/* ---------- MB52 ---------- */
+function scrMB52(){
+  const total = MATERIALS.reduce((a,m)=>a+m.stock*m.price,0);
+  return head("MB52","Zásoby na skladě podle materiálu",
+    "Hodnotový a množstevní přehled volně použitelné zásoby ve skladu 0001, závod 1000.")+
+  '<div class="tiles" style="margin-bottom:16px">'+
+    tile("Hodnota zásoby", num(total/1000)+" tis. Kč","volně použitelná, sklad 0001")+
+    tile("Materiálů pod pojistnou zásobou", String(MATERIALS.filter(m=>m.stock<m.safety).length),"okamžitý stav",
+         MATERIALS.filter(m=>m.stock<m.safety).length?"crit":"good")+
+    tile("Průměrný dosah", num(MATERIALS.reduce((a,m)=>a+Math.min(coverDays(m),20),0)/MATERIALS.length,1)+" dní","do poklesu pod pojistnou zásobu")+
+  '</div>'+
+  '<div class="card"><div class="card-b flush"><div class="tblwrap"><table class="grid"><thead><tr>'+
+  '<th>Materiál</th><th>Krátký text</th><th style="text-align:right">Volná zásoba</th>'+
+  '<th style="text-align:right">Pojistná</th><th style="text-align:right">Hodnota</th><th>Dosah</th></tr></thead><tbody>'+
+  MATERIALS.map(m=>{
+    const cov=coverDays(m);
+    const pct=Math.min(100,(cov/20)*100);
+    const cls = cov<=3?"crit":cov<=7?"warn":"good";
+    const under = m.stock<m.safety;
+    return '<tr class="clickable" data-md04="'+m.id+'">'+
+      '<td class="code stripe s-'+(under?"crit":"none")+'">'+m.id+'</td><td class="wrap">'+esc(m.txt)+'</td>'+
+      '<td class="num'+(under?" negative":"")+'">'+num(m.stock)+' '+m.unit+'</td>'+
+      '<td class="num">'+num(m.safety)+'</td>'+
+      '<td class="num">'+money(m.stock*m.price)+'</td>'+
+      '<td><span class="meter"><span class="meter-track"><span class="meter-fill '+cls+'" style="width:'+pct+'%"></span></span>'+
+      '<span class="meter-v">'+(cov>=99?"20+ d":cov+" d")+'</span></span></td></tr>';
+  }).join("")+'</tbody></table></div></div></div>';
+}
+
+/* ---------- SBWP ---------- */
+function scrSBWP(){
+  return head("SBWP","Schránka příjmu zpráv",
+    "Zprávy od dodavatelů, plánování výroby, jakosti a obchodu. Většina z nich mění situaci v plánu — "+
+    "po přečtení se vyplatí zkontrolovat dotčený materiál v MD04.")+
+  '<div class="card"><div class="card-h"><h3>Doručené</h3><span class="hint">'+
+  S.inbox.filter(x=>x.unread).length+' nepřečtených z '+cnt(S.inbox.length,"zprávy","zpráv","zpráv")+'</span></div>'+
+  '<div class="card-b flush">'+
+  (S.inbox.length ? S.inbox.map(mm=>{
+    const c = mm.sev==="crit"?"crit":mm.sev==="warn"?"warn":"info";
+    return '<div class="mail'+(mm.unread?" unread":"")+'">'+
+      '<span class="mail-ic" style="border-color:var(--'+(c==="info"?"accent":c)+');color:var(--'+(c==="info"?"accent":c)+');background:var(--'+(c==="info"?"accent":c)+'-soft)">'+
+      (mm.sev==="crit"?"!":mm.sev==="warn"?"△":"i")+'</span>'+
+      '<div class="mail-body"><p class="mail-subj">'+esc(mm.subj)+'</p>'+
+      '<p class="mail-from">'+esc(mm.from)+' · den '+mm.day+'</p>'+
+      '<p class="mail-txt">'+esc(mm.txt)+'</p>'+
+      '<div class="mail-act">'+
+        (mm.mat?'<button class="tbtn" data-md04="'+mm.mat+'" type="button">Otevřít '+mm.mat+' v MD04</button>':"")+
+        (mm.unread?'<button class="tbtn" data-read="'+mm.id+'" type="button">Označit jako vyřízené</button>':
+                   '<span class="pill good">vyřízeno</span>')+
+      '</div></div></div>';
+  }).join("") : '<div class="empty">Schránka je prázdná.</div>')+
+  '</div></div>';
+}
+
+/* ---------- ZDEN ---------- */
+function scrZDEN(){
+  const last = S.history[S.history.length-1];
+  const tasks = dailyTasks();
+  const open = tasks.filter(t=>!t.done && t.count).length;
+  return head("ZDEN","Uzávěrka pracovního dne",
+    "Uzávěrkou předáte den systému: proběhnou příjmy zboží, výdeje do výroby, přijdou nové zprávy "+
+    "a spustí se plánovací běh. Co jste nestihli rozhodnout, se promítne do výsledku.")+
+  (open ? '<div class="note warn"><strong>Ještě máte otevřené úkony.</strong> V denním seznamu '+
+    (open===1?'zbývá 1 nehotová položka':cnt(open,"","zbývají nehotové položky","zbývá nehotových položek"))+
+    '. Uzavřít den můžete i tak — jen počítejte s dopadem na ukazatele.</div>'
+        : '<div class="note"><strong>Denní úkony jsou hotové.</strong> Plán je konzistentní, můžete uzavřít den.</div>')+
+  '<div class="card"><div class="card-h"><h3>Den '+S.day+' · '+fmtDLong(S.today)+'</h3></div>'+
+  '<div class="card-b"><ul class="plain">'+
+    tasks.map(t=>'<li>'+(t.done?"✓ ":"◻ ")+esc(t.label)+
+      (t.count!==undefined?" — "+(t.count?cnt(t.count,"otevřená položka","otevřené položky","otevřených položek"):"hotovo"):"")+'</li>').join("")+
+  '</ul></div>'+
+  '<div class="actionbar"><button class="tbtn primary" data-act="close-day" type="button">Uzavřít den a spustit plánovací běh</button>'+
+  '<span class="sel-info">zbývá '+cnt(MAX_DAYS-S.day+1,"den","dny","dní")+'</span></div></div>'+
+  (last ? dayReport(last) : "");
+}
+
+function dayReport(r){
+  return '<h4 class="sub">Hlášení z předchozího dne — '+fmtD(r.date)+'</h4>'+
+  '<div class="card"><div class="card-b">'+
+  '<ul class="plain">'+
+    (r.receipts.length ? r.receipts.map(x=>'<li>Příjem zboží: <span class="mono">'+x.mat+'</span> +'+num(x.qty)+' '+x.unit+' (objednávka '+x.ref+')</li>').join("") : '<li>Žádné příjmy zboží.</li>')+
+    r.issues.map(x=>'<li>Výdej do výroby: <span class="mono">'+x.mat+'</span> −'+num(x.qty)+' '+x.unit+'</li>').join("")+
+    r.shortages.map(x=>'<li style="color:var(--crit)"><strong>Nekrytý výdej:</strong> <span class="mono">'+x.mat+'</span> chybí '+num(x.missing)+' '+x.unit+' — výroba stojí, potřeba zůstává otevřená.</li>').join("")+
+    r.events.map(x=>'<li style="color:var(--warn)">'+esc(x.txt)+'</li>').join("")+
+  '</ul></div></div>';
+}
+
+/* ---------- FINÁLE ---------- */
+function scrFinal(){
+  const ev = evaluate();
+  const cls = ev.score>=80?"good":ev.score>=60?"warn":"crit";
+  const verdict = ev.score>=85 ? "Výborně odvedená disponentská práce. Výroba běžela a kapitál jste nepřevázali."
+    : ev.score>=70 ? "Solidní výsledek. Pár rozhodnutí přišlo pozdě, ale linka se nezastavila nadlouho."
+    : ev.score>=50 ? "Průměr. Výjimky jste řešili spíš reaktivně — expresní dodávky a prostoje se prodražily."
+    : "Slabý výsledek. Výroba stála a náklady na hašení požárů převýšily to, co by stálo včasné objednání.";
+  return head("ZDEN","Vyhodnocení disponentského období",
+    "Deset pracovních dní za vámi. Takhle by se vaše rozhodnutí projevila v ukazatelích závodu.")+
+  '<div class="card"><div class="card-b" style="display:flex;gap:26px;align-items:center;flex-wrap:wrap">'+
+    '<div><div class="scorebig" style="color:var(--'+cls+')">'+ev.score+'</div>'+
+    '<div style="font-family:var(--data);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)">celkové skóre ze 100</div></div>'+
+    '<p style="margin:0;max-width:46ch;font-size:13.5px;line-height:1.6">'+esc(verdict)+'</p>'+
+  '</div></div>'+
+  '<div class="tiles">'+
+    tile("Servisní úroveň", num(ev.service,1)+" %","hodnota krytých potřeb", ev.service>=97?"good":ev.service>=92?"warn":"crit")+
+    tile("Prostoje výroby", String(S.kpi.stoppages),"nekryté výdeje", S.kpi.stoppages?"crit":"good")+
+    tile("Vícenáklady", money(S.kpi.extraCost),"expres, storna, prostoje", S.kpi.extraCost>90000?"crit":S.kpi.extraCost>35000?"warn":"good")+
+    tile("Průměrná zásoba", num(ev.avgStock/1000)+" tis.", "Kč · "+num(ev.stockIdx)+" % výchozího stavu")+
+    tile("Založené objednávky", String(S.kpi.orders),"za sledované období")+
+    tile("Odeslané urgence", String(S.kpi.urgencies),"tlak na dodavatele")+
+  '</div>'+
+  '<h4 class="sub">Z čeho se skóre skládá</h4>'+
+  '<div class="card"><div class="card-b">'+
+    scoreBar("Servisní úroveň", ev.sService, 55)+
+    scoreBar("Hospodárnost (vícenáklady)", ev.sCost, 25)+
+    scoreBar("Vázaný kapitál v zásobě", ev.sStock, 20)+
+  '</div></div>'+
+  '<h4 class="sub">Deník rozhodnutí</h4>'+
+  '<div class="card"><div class="card-b flush"><div class="tblwrap"><table class="grid">'+
+  '<thead><tr><th style="width:60px">Den</th><th>Rozhodnutí</th></tr></thead><tbody>'+
+  (S.journal.length ? S.journal.map(j=>'<tr><td class="code">'+j.day+'</td><td class="wrap">'+esc(j.txt)+'</td></tr>').join("")
+   : '<tr><td colspan="2" class="wrap" style="color:var(--ink-3)">Za celé období jste neprovedli žádný zásah do plánu.</td></tr>')+
+  '</tbody></table></div></div></div>'+
+  '<div class="actionbar" style="border:1px solid var(--line);border-radius:3px">'+
+  '<button class="tbtn primary" data-act="restart" type="button">Spustit nové období</button></div>';
+}
+function scoreBar(label, got, max){
+  const pct = max? (got/max)*100 : 0;
+  const cls = pct>=80?"good":pct>=55?"warn":"crit";
+  return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:9px">'+
+    '<span style="width:210px;font-size:12.3px">'+esc(label)+'</span>'+
+    '<span class="meter" style="flex:1"><span class="meter-track" style="height:9px"><span class="meter-fill '+cls+'" style="width:'+pct+'%"></span></span>'+
+    '<span class="meter-v">'+num(got,1)+' / '+max+'</span></span></div>';
+}
+
+/* ==========================================================================
+   12. MODÁLNÍ DIALOGY
+   ========================================================================== */
+function closeModal(){ modalHost.innerHTML=""; }
+
+function openOrderDialog(el){
+  const m = MAT[el.mat];
+  const stdDate = nextWorkday(addWorkdays(S.today, m.plt));
+  const expDate = nextWorkday(addWorkdays(S.today, Math.max(1,Math.round(m.plt*0.55))));
+  const need = firstShortage(m, el.id);
+  const surcharge = el.qty*m.price*0.22;
+  modalHost.innerHTML =
+  '<div class="veil" data-veil><div class="modal" role="dialog" aria-modal="true" aria-label="Založení objednávky">'+
+    '<div class="modal-h">ME21N — Založení objednávky</div>'+
+    '<div class="modal-b">'+
+      '<div class="fields" style="padding:0 0 12px">'+
+        field("Materiál", m.id)+field("Krátký text", m.txt)+
+        field("Množství", num(el.qty)+" "+m.unit)+
+        field("Dodavatel", VENDORS[m.vendor].name)+
+        field("Hodnota", money(el.qty*m.price))+
+        field("Potřeba krytí od", need?fmtD(need):"není v horizontu")+
+      '</div>'+
+      '<label class="opt on"><input type="radio" name="mode" value="std" checked />'+
+        '<span><span class="o-t">Standardní dodací lhůta — '+m.plt+' prac. dní</span>'+
+        '<span class="o-d">Dodání '+fmtD(stdDate)+'. Bez příplatku.'+
+        (need && need<stdDate ? ' <strong style="color:var(--crit)">Pozor: potřeba nastává už '+fmtD(need)+' — standardní termín ji nepokryje.</strong>':'')+
+        '</span></span></label>'+
+      '<label class="opt"><input type="radio" name="mode" value="express" />'+
+        '<span><span class="o-t">Expresní dodávka — '+Math.max(1,Math.round(m.plt*0.55))+' prac. dní</span>'+
+        '<span class="o-d">Dodání '+fmtD(expDate)+'. Příplatek 22 % z hodnoty, tedy '+money(surcharge)+'.</span></span></label>'+
+    '</div>'+
+    '<div class="modal-f"><button class="tbtn" data-close type="button">Zpět</button>'+
+    '<button class="tbtn primary" data-confirm-order="'+el.id+'" type="button">Uložit objednávku</button></div>'+
+  '</div></div>';
+  modalHost.querySelectorAll('input[name=mode]').forEach(r=>{
+    r.addEventListener("change",()=>{
+      modalHost.querySelectorAll(".opt").forEach(o=>o.classList.toggle("on", o.contains(document.querySelector("input[name=mode]:checked"))));
+    });
+  });
+}
+
+function openMoveDialog(el){
+  const m = MAT[el.mat];
+  const prop = el.prop ? fmtD(el.prop) : "";
+  const iso = dt=>dt.toISOString().slice(0,10);
+  modalHost.innerHTML =
+  '<div class="veil" data-veil><div class="modal" role="dialog" aria-modal="true" aria-label="Změna termínu dodání">'+
+    '<div class="modal-h">ME22N — Změna objednávky '+esc(el.ref)+'</div>'+
+    '<div class="modal-b">'+
+      '<div class="fields" style="padding:0 0 12px">'+
+        field("Materiál", m.id)+field("Množství", num(el.qty)+" "+m.unit)+
+        field("Stávající termín", fmtD(el.date))+
+        field("Dodavatel", VENDORS[m.vendor].name)+
+        field("Návrh systému", prop||"—")+
+        field("Spolehlivost dodavatele", Math.round(VENDORS[m.vendor].reliability*100)+" %")+
+      '</div>'+
+      '<div class="form-row"><label for="newDate">Nový termín dodání</label>'+
+      '<input id="newDate" type="date" value="'+iso(el.prop||el.date)+'" min="'+iso(addDays(S.today,1))+'" /></div>'+
+      '<p style="font-size:12.2px;color:var(--ink-2);line-height:1.5;margin:0">'+
+      'Posun <strong>dopředu</strong> musí dodavatel potvrdit — čím větší skok, tím menší šance, a navíc se účtuje '+
+      'příplatek 9 % z hodnoty. Posun <strong>dozadu</strong> je zdarma a uvolní vázaný kapitál.</p>'+
+    '</div>'+
+    '<div class="modal-f"><button class="tbtn" data-close type="button">Zpět</button>'+
+    '<button class="tbtn primary" data-confirm-move="'+el.id+'" type="button">Uložit termín</button></div>'+
+  '</div></div>';
+}
+
+function openConfirm(title, text, onYes){
+  modalHost.innerHTML =
+  '<div class="veil" data-veil><div class="modal" style="width:min(430px,100%)" role="dialog" aria-modal="true">'+
+    '<div class="modal-h">'+esc(title)+'</div>'+
+    '<div class="modal-b"><p style="margin:0;font-size:13px;line-height:1.55">'+text+'</p></div>'+
+    '<div class="modal-f"><button class="tbtn" data-close type="button">Ne</button>'+
+    '<button class="tbtn primary" id="yesBtn" type="button">Ano, provést</button></div>'+
+  '</div></div>';
+  document.getElementById("yesBtn").addEventListener("click",()=>{ closeModal(); onYes(); });
+}
+
+function openDayReport(r){
+  const ev = evaluate();
+  modalHost.innerHTML =
+  '<div class="veil" data-veil><div class="modal" role="dialog" aria-modal="true">'+
+    '<div class="modal-h">Hlášení o uzávěrce — '+fmtD(r.date)+'</div>'+
+    '<div class="modal-b">'+dayReport(r).replace(/^<h4[^>]*>.*?<\/h4>/,"")+
+      '<div class="tiles" style="margin-top:6px">'+
+      tile("Servis","" + num(ev.service,1)+" %","kumulativně", ev.service>=97?"good":ev.service>=92?"warn":"crit")+
+      tile("Vícenáklady", num(S.kpi.extraCost/1000)+" tis.","kumulativně")+
+      '</div></div>'+
+    '<div class="modal-f"><button class="tbtn primary" data-close type="button">Pokračovat na den '+Math.min(S.day,MAX_DAYS)+'</button></div>'+
+  '</div></div>';
+}
+
+/* ==========================================================================
+   13. UDÁLOSTI
+   ========================================================================== */
+document.addEventListener("click", ev=>{
+  const t = ev.target.closest("[data-go],[data-md04],[data-sel],[data-act],[data-order],[data-urge],[data-read],[data-close],[data-confirm-order],[data-confirm-move]");
+  if(ev.target.hasAttribute && ev.target.hasAttribute("data-veil")){ closeModal(); return; }
+  if(!t) return;
+
+  if(t.hasAttribute("data-close")){ closeModal(); return; }
+  if(t.hasAttribute("data-go")){ go(t.getAttribute("data-go")); return; }
+  if(t.hasAttribute("data-md04")){ closeModal(); go("MD04",{mat:t.getAttribute("data-md04")}); return; }
+  if(t.hasAttribute("data-sel")){ S.selected = t.getAttribute("data-sel"); render(); return; }
+
+  if(t.hasAttribute("data-order")){
+    const el = S.els.find(x=>x.id===t.getAttribute("data-order"));
+    if(el) openOrderDialog(el);
+    return;
+  }
+  if(t.hasAttribute("data-urge")){
+    const el = S.els.find(x=>x.id===t.getAttribute("data-urge"));
+    if(el){ urgeOrder(el); render(); }
+    return;
+  }
+  if(t.hasAttribute("data-read")){
+    const mm = S.inbox.find(x=>x.id===t.getAttribute("data-read"));
+    if(mm){ mm.unread=false; render(); msg("good","Zpráva byla označena jako vyřízená."); }
+    return;
+  }
+  if(t.hasAttribute("data-confirm-order")){
+    const el = S.els.find(x=>x.id===t.getAttribute("data-confirm-order"));
+    const mode = (modalHost.querySelector("input[name=mode]:checked")||{}).value || "std";
+    closeModal();
+    if(el){ placeOrder(el, mode); render(); }
+    return;
+  }
+  if(t.hasAttribute("data-confirm-move")){
+    const el = S.els.find(x=>x.id===t.getAttribute("data-confirm-move"));
+    const input = document.getElementById("newDate");
+    const val = input && input.value ? new Date(input.value+"T00:00:00Z") : null;
+    closeModal();
+    if(el && val && !isNaN(val)){ moveOrder(el, nextWorkday(val)); render(); }
+    return;
+  }
+
+  if(t.hasAttribute("data-act")){
+    const a = t.getAttribute("data-act");
+    const el = S.selected ? S.els.find(x=>x.id===S.selected) : null;
+    if(a==="act-banf" && el){ convertToBANF(el); render(); }
+    else if(a==="act-order" && el){ openOrderDialog(el); }
+    else if(a==="act-move" && el){ openMoveDialog(el); }
+    else if(a==="act-urge" && el){ urgeOrder(el); render(); }
+    else if(a==="act-cancel" && el){
+      const m=MAT[el.mat];
+      openConfirm("Storno prvku "+el.ref,
+        "Opravdu stornovat "+kindLabel(el.kind)+" <span class=\"mono\">"+esc(el.ref)+"</span> na "+num(el.qty)+" "+m.unit+
+        " materiálu "+m.id+"? U objednávek krátce před dodáním účtuje dodavatel storno poplatek 12 % z hodnoty.",
+        ()=>{ cancelSupply(el); S.selected=null; render(); });
+    }
+    else if(a==="close-day"){
+      const r = closeDay();
+      render();
+      if(S.finished){ go("ZDEN"); }
+      else if(r) openDayReport(r);
+      msg("info","Plánovací běh proveden. Nyní je "+fmtDLong(S.today)+".");
+    }
+    else if(a==="restart"){ restart(); }
+    return;
+  }
+});
+
+/* příkazové pole */
+document.getElementById("cmd").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){
+    const v = e.target.value.trim();
+    e.target.value = "";
+    if(!v){ go("MENU"); return; }
+    go(v);
+  }
+});
+document.getElementById("btnMenu").addEventListener("click", ()=>go("MENU"));
+document.getElementById("btnBack").addEventListener("click", ()=>{
+  if(S.screen==="MD04") go("MD06"); else go("MENU");
+});
+document.getElementById("btnClose").addEventListener("click", ()=>go("ZDEN"));
+
+/* přepínač tématu */
+(function(){
+  const btn = document.getElementById("themeBtn");
+  btn.addEventListener("click", ()=>{
+    const cur = document.documentElement.getAttribute("data-theme");
+    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const now = cur || (sysDark?"dark":"light");
+    document.documentElement.setAttribute("data-theme", now==="dark"?"light":"dark");
+  });
+})();
+
+/* klávesové zkratky F-kláves po vzoru systému */
+document.addEventListener("keydown", e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
+  if(e.key==="F3"){ e.preventDefault(); document.getElementById("btnBack").click(); }
+  if(e.key==="/"){ e.preventDefault(); document.getElementById("cmd").focus(); }
+});
+
+/* výběr materiálu v MD04 */
+document.addEventListener("change", e=>{
+  if(e.target.id==="matSel"){ go("MD04",{mat:e.target.value}); }
+});
+
+/* ==========================================================================
+   14. START
+   ========================================================================== */
+function restart(){
+  seed = 20260810 + Math.floor(Math.random()*100000);
+  idSeq = 4700000;
+  S.day=1; S.today=new Date(START.getTime()); S.els=[]; S.inbox=[]; S.journal=[];
+  S.history=[]; S.selected=null; S.finished=false; S.screen="MENU"; S.ctx={};
+  S.acted={md06:false,me57:false,me2m:false};
+  S.kpi={demandQty:0,metQty:0,extraCost:0,stoppages:0,stockValSum:0,stockDays:0,orders:0,urgencies:0};
+  MATERIALS.forEach(m=>{ m.stock=m.stockInit; });
+  closeModal();
+  boot();
+}
+function boot(){
+  seedDemands();
+  seedSupplies();
+  runMRP();
+  S.inbox.push({
+    id:nextId("MB"), day:1, unread:true, sev:"info",
+    from:"Vedoucí nákupu <sefova@zavod1000.cz>",
+    subj:"Převzetí disponentské skupiny 101",
+    txt:"Vítejte. Od dnešního dne přebíráte disponentskou skupinu 101 — sedm nakupovaných materiálů pro linku převodovek. "+
+        "Kolega odešel narychlo, takže plán není zrovna uklizený: podívejte se hned ráno do MD06. "+
+        "Hodnotíme dvě věci — jestli linka stojí, a kolik nás stály expresy a prostoje.",
+    mat:null
+  });
+  render();
+  msg("info","Přihlášen disponent 101, závod 1000. Začněte transakcí MD06.");
+}
+boot();
+</script>
 </body>
 </html>
