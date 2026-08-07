@@ -1,51 +1,41 @@
-# Disponent 101 — tréninkové prostředí MRP
+# Kokpit rutin — ZATE
 
-Simulace denních úkonů disponenta (MRP controllera) podle logiky SAPu.
-Jeden soubor `index.html`, bez závislostí — stačí otevřít v prohlížeči.
+Denní odbavení disponenta na jedné stránce. Čte textové exporty ze ZATE,
+drží si, co už je vyřízené, a nic neposílá ven — data zůstávají v prohlížeči.
 
-## Co se tu trénuje
+Jeden soubor `index.html`, bez závislostí a bez serveru. Stačí otevřít.
 
-Deset pracovních dní ve výrobním závodě. Disponentská skupina 101, sedm
-nakupovaných materiálů. Každý den je potřeba udržet krytí výrobních potřeb
-a přitom nevázat zbytečně kapitál v zásobách.
+## Reporty
 
-| Transakce | Obrazovka |
-|---|---|
-| `MD06` | Seznam MRP — materiály se zprávami výjimky |
-| `MD04` | Stav zásob a potřeb — časová osa prvků plánování |
-| `ME57` | Přiřazení a zpracování nákupních požadavků |
-| `ME21N` | Založení objednávky (standardní nebo expresní dodání) |
-| `ME22N` | Změna termínu dodání, storno |
-| `ME2M` | Otevřené objednávky, urgence |
-| `MB52` | Zásoby na skladě |
-| `SBWP` | Schránka příjmu zpráv |
-| `ZDEN` | Uzávěrka dne a vyhodnocení období |
+| Report | Název | Dlaždice |
+|---|---|---|
+| 500 116 | Unconfirmed Customer Orders | Nepotvrzené zakázky |
+| 212 020 | Current purchase requisitions | Aktuální BANFy |
+| 500 108 | Fehlerprotokolle Lieferanlage | Nevyklopené dodávky |
 
-Kódy se zadávají do pole *Transakce* stejně jako v systému, včetně předpony
-`/n`. `F3` je zpět, `/` skočí do příkazového pole.
+## Jak se to používá
 
-## Jak funguje plánování
+1. V SAPu spusť ZATE a report ulož jako lokální soubor (text s tabulátory).
+2. Nahoře **Import ze ZATE** — všechny tři soubory můžeš vybrat naráz, nebo
+   obsah exportu jen vložit do textového pole.
+3. Typ reportu se pozná sám podle hlavičky, nic se nevybírá.
 
-Plánovací běh po každém zásahu:
+Dlaždice ukazuje počet otevřených položek a upozorní na ty po termínu.
+Po rozkliknutí lze každou položku odbavit — u zakázek se zadá potvrzené
+množství a datum, u BANFů a chyb stačí potvrdit. Omylem odbavenou položku
+vrátí tlačítko **Vrátit**.
 
-1. **Kontrola přeplánování** — vznikne-li podkrytí a existuje pozdější pevná
-   dodávka, systém nezakládá novou zakázku, ale navrhne přesunout stávající
-   vpřed (zpráva **10**). V MD04 proto zůstane vidět propad disponibilního
-   množství — přesun musí provést disponent.
-2. **Nové plánované zakázky** — periodická velikost dávky, čistá potřeba se
-   seskupuje po týdnech. Termín zahájení = termín dodání minus plánovaná
-   dodací lhůta; když už uplynul, hlásí se zpráva **06**, do tří dnů **30**.
-3. **Nadbytek** — dodávka, kterou v horizontu není potřeba, dostane zprávu
-   **20**; dodávka o víc než 12 dní předběhnutá zprávu **15**.
+V hlavičce se dá zúžit výběr na vlastní dispo kódy; volba se pamatuje.
 
-Hodnocený horizont je 40 dní, plánuje se do 46 dní, aby na okraji nevznikalo
-umělé podkrytí.
+## Co je dobré vědět
 
-## Vyhodnocení
+- **Odbavené položky přežijí nový import.** Páruje se přes doklad + položku,
+  takže zítřejší export téhož reportu nepřepíše, co jsi dnes vyřídil.
+- **Report 500 108 se v každém běhu opakuje.** Řádky se slučují podle
+  dokladu, položky a chybové zprávy — drží se poslední běh a počet výskytů.
+- **Kódování.** Exporty ze SAPu chodí občas ve windows-1252; pozná se to
+  a přečte správně.
+- **Data jsou jen lokálně.** Tlačítko *Vymazat data* smaže import i stav
+  odbavení. Ze SAPu se nemaže nic.
 
-Skóre se skládá ze tří částí: servisní úroveň (55 bodů, hodnota krytých
-potřeb), hospodárnost (25 bodů, expresní příplatky, storna a náklady prostojů)
-a vázaný kapitál v průměrné zásobě (20 bodů). Expresní dodání zkracuje lhůtu
-zhruba na polovinu za příplatek 22 %, posun objednávky vpřed stojí 9 % a
-dodavatel ho nemusí potvrdit, urgence stojí 350 Kč a zvyšuje spolehlivost
-dodávky asi o 12 procentních bodů.
+Ostrá verze by místo importu četla a zapisovala do SAP přes OData / RFC.
