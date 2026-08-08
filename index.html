@@ -37,6 +37,7 @@
   --rep-1: #1f5c8f;
   --rep-2: #5d4a9c;
   --rep-3: #0f6b62;
+  --rep-4: #9c2f6b;
 
   --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -72,6 +73,7 @@
     --rep-1: #67a8dc;
     --rep-2: #a992e0;
     --rep-3: #4fb5a6;
+    --rep-4: #e08ab5;
   }
 }
 
@@ -99,6 +101,7 @@
   --rep-1: #1f5c8f;
   --rep-2: #5d4a9c;
   --rep-3: #0f6b62;
+  --rep-4: #9c2f6b;
 }
 
 :root[data-theme="dark"] {
@@ -124,6 +127,7 @@
   --rep-1: #67a8dc;
   --rep-2: #a992e0;
   --rep-3: #4fb5a6;
+  --rep-4: #e08ab5;
 }
 
 /* ============================================================
@@ -159,6 +163,8 @@ a { color: var(--accent); text-decoration: none; }
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
+/* datum ani částka se nikdy nelámou přes dva řádky */
+.num, td.n { white-space: nowrap; }
 
 /* ============================================================
    HLAVIČKA
@@ -601,6 +607,18 @@ dialog::backdrop { background: rgba(6,10,14,.52); }
 .dlg-body { padding: 20px 22px; }
 .dlg-body h3 { margin: 0 0 4px; font-size: 1rem; font-weight: 650; text-wrap: balance; }
 .dlg-sub { color: var(--ink-mid); font-size: .85rem; margin: 0 0 16px; }
+.dlg-hint {
+  color: var(--ink-mid);
+  font-size: .82rem;
+  line-height: 1.5;
+  background: var(--panel-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 3px 3px 0;
+  padding: 9px 12px;
+  margin: 0 0 16px;
+}
+/* potvrzená hodnota, která se liší od objednané */
+.shift { color: var(--warn); font-weight: 650; display: block; white-space: nowrap; }
 
 .f { display: flex; flex-direction: column; gap: 4px; margin-bottom: 13px; }
 .f > label {
@@ -702,7 +720,7 @@ footer {
 const KEY_DATA  = "kokpit-zate-data";
 const KEY_DISPO = "kokpit-zate-dispo";
 
-let store = { zakazky: [], banfy: [], chyby: [], dispoNames: {} };
+let store = { zakazky: [], banfy: [], objednavky: [], chyby: [], dispoNames: {} };
 
 function loadStore() {
   try {
@@ -720,6 +738,7 @@ function saveStore() {
    ============================================================ */
 
 function detectReport(text) {
+  if (/order acknowledg|order confirmation|auftragsbest|potvrzen[íi] objedn/i.test(text)) return "objednavky";
   if (/Unconfirmed Customer Orders/i.test(text)) return "zakazky";
   if (/purchase requisitions/i.test(text)) return "banfy";
   if (/Fehlerprotokolle|Lieferanlage/i.test(text)) return "chyby";
@@ -814,14 +833,47 @@ function parseChyby(text) {
   return [...map.values()];
 }
 
-const PARSERS = { zakazky: parseZakazky, banfy: parseBanfy, chyby: parseChyby };
+/* Potvrzení objednávek u dodavatele — sledování, co dodavatel odsouhlasil.
+   Sloupce (poziční, stejně jako ostatní reporty):
+   Objednávka | Pol. | Materiál | Krátký text | Dodavatel | Název dodavatele |
+   Množství | MJ | Datum dodání | Cena | Měna | Dispo | Potvrzeno
+   Poslední dva sloupce jsou nepovinné. */
+function parseObjednavky(text) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    const t = tok(line);
+    if (t.length < 11) continue;
+    if (!/^\d{8,10}$/.test(t[0])) continue;
+    const datum = parseDate(t[8]);
+    if (!datum) continue;
+    out.push({
+      key: `${t[0]}-${t[1]}`,
+      doklad: t[0], pol: t[1], material: t[2], text: t[3],
+      dodavatelKod: t[4], dodavatel: t[5],
+      mnozstvi: parseQty(t[6]), mj: t[7], datum,
+      cena: parseQty(t[9]), mena: t[10] || "CZK",
+      dispo: t[11] || "",
+      potvrzenoSAP: /^(x|yes|ano)$/i.test(t[12] || ""),
+      stav: "open"
+    });
+  }
+  return out;
+}
+
+const PARSERS = { zakazky: parseZakazky, banfy: parseBanfy, objednavky: parseObjednavky, chyby: parseChyby };
 
 function importItems(type, items) {
   const prevDone = new Map((store[type] || [])
     .filter(i => i.stav === "done")
-    .map(i => [i.key, i.vyrizeno]));
+    .map(i => [i.key, i]));
   items.forEach(i => {
-    if (prevDone.has(i.key)) { i.stav = "done"; i.vyrizeno = prevDone.get(i.key); }
+    const old = prevDone.get(i.key);
+    if (!old) return;
+    /* Sloupce se berou z čerstvého exportu, ale co do položky zapsal disponent
+       — potvrzené hodnoty, odchylky, datum vyřízení — musí přežít. */
+    for (const k of Object.keys(old)) if (!(k in i)) i[k] = old[k];
+    i.stav = "done";
+    i.vyrizeno = old.vyrizeno;
   });
   store[type] = items;
   saveStore();
@@ -915,6 +967,74 @@ const MODULES = {
     }
   },
 
+  objednavky: {
+    code: "ME2A",
+    name: "Order acknowledgements",
+    cz: "Potvrzení objednávek",
+    hue: "var(--rep-4)",
+    unit: "položek",
+    act: "Potvrdit",
+    doneWord: "Potvrzeno",
+    late(i) { return i.datum < todayISO(); },
+    sort(a, b) { return a.datum < b.datum ? -1 : 1; },
+    cols: ["Objednávka", "Materiál", "Dodavatel", "Dispo", { t: "Množství", r: 1 }, "Dodání", { t: "Cena", r: 1 }, "Stav", ""],
+    row(i) {
+      const dateShift = i.potvrzeneDatum && i.potvrzeneDatum !== i.datum;
+      const priceShift = i.potvrzenaCena !== undefined && Math.abs(Number(i.potvrzenaCena) - Number(i.cena)) > 0.005;
+      return [
+        `<span class="doc">${esc(i.doklad)} <em>/ ${esc(i.pol)}</em></span>`,
+        `<span class="mat">${esc(i.material)}</span><span class="mat-cat">${esc(i.text)}</span>`,
+        `${esc(i.dodavatel)}<span class="mat-cat">${esc(i.dodavatelKod)}</span>`,
+        i.dispo ? `<span class="dispo" title="${esc(dispoName(i.dispo))}">${esc(i.dispo)}</span>` : `<span class="soft">—</span>`,
+        { n: `${fmtNum(i.mnozstvi)} ${esc(i.mj)}` },
+        `<span class="num">${fmtDate(i.datum)}</span>` +
+          (dateShift ? `<span class="mat-cat shift">→ ${fmtDate(i.potvrzeneDatum)}</span>` : ""),
+        { n: `${fmtPrice(i.cena)} ${esc(i.mena)}` +
+            (priceShift ? `<span class="mat-cat shift">→ ${fmtPrice(i.potvrzenaCena)}</span>` : "") }
+      ];
+    },
+    find(i) { return [i.doklad, i.material, i.text, i.dodavatel, i.dodavatelKod, i.dispo]; },
+    donePill(i) {
+      const od = i.odchylky || [];
+      if (!od.length) return `<span class="pill good">✓ Souhlasí${i.vyrizeno ? " " + fmtDate(i.vyrizeno) : ""}</span>`;
+      const word = od.length === 1 ? "odchylka" : "odchylky";
+      return `<span class="pill hold" title="${esc(od.join(" · "))}">⚠ ${od.length} ${word}</span>`;
+    },
+    dialog(i) {
+      return {
+        title: `Potvrdit objednávku ${i.doklad} / ${i.pol}`,
+        sub: `${i.material} · ${i.text} · ${i.dodavatel}`,
+        hint: "Přepiš údaje podle potvrzení od dodavatele. Co se liší od objednávky, se u položky vyznačí jako odchylka.",
+        fields: [
+          { key: "potvrzenaObjednavka", label: "Číslo objednávky z potvrzení", type: "text", value: i.doklad },
+          { key: "potvrzeneDatum", label: "Potvrzené datum doručení", type: "date", value: i.datum },
+          { key: "potvrzenaCena", label: `Potvrzená cena (${i.mena})`, type: "number", value: i.cena }
+        ],
+        derive(p) {
+          const od = [];
+          if (String(p.potvrzenaObjednavka).trim() !== String(i.doklad).trim())
+            od.push(`číslo objednávky ${p.potvrzenaObjednavka} místo ${i.doklad}`);
+          if (p.potvrzeneDatum !== i.datum) {
+            const dny = Math.round((Date.parse(p.potvrzeneDatum) - Date.parse(i.datum)) / 86400000);
+            od.push(`termín ${fmtDate(p.potvrzeneDatum)} místo ${fmtDate(i.datum)} (${dny > 0 ? "+" : ""}${dny} dní)`);
+          }
+          const rozdil = Number(p.potvrzenaCena) - Number(i.cena);
+          if (Math.abs(rozdil) > 0.005) {
+            const pct = Number(i.cena) ? Math.round((rozdil / Number(i.cena)) * 1000) / 10 : 0;
+            od.push(`cena ${fmtPrice(p.potvrzenaCena)} místo ${fmtPrice(i.cena)} ${i.mena} (${pct > 0 ? "+" : ""}${String(pct).replace(".", ",")} %)`);
+          }
+          return { odchylky: od };
+        },
+        toast: (p, extra) => {
+          const od = (extra && extra.odchylky) || [];
+          return od.length
+            ? `Objednávka ${i.doklad}/${i.pol} potvrzena s odchylkou — ${od.join(" · ")}.`
+            : `Objednávka ${i.doklad}/${i.pol} potvrzena, vše souhlasí.`;
+        }
+      };
+    }
+  },
+
   chyby: {
     code: "500 108",
     name: "Fehlerprotokolle Lieferanlage",
@@ -977,6 +1097,9 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 function fmtNum(n) { return Number(n).toLocaleString("cs-CZ"); }
+function fmtPrice(n) {
+  return Number(n).toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function fmtDate(iso) {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
@@ -995,7 +1118,10 @@ function isoOffset(days) {
 }
 
 function statePill(i, mod) {
-  if (i.stav === "done") return `<span class="pill good">✓ ${mod.doneWord}${i.vyrizeno ? " " + fmtDate(i.vyrizeno) : ""}</span>`;
+  if (i.stav === "done") {
+    if (mod.donePill) return mod.donePill(i);
+    return `<span class="pill good">✓ ${mod.doneWord}${i.vyrizeno ? " " + fmtDate(i.vyrizeno) : ""}</span>`;
+  }
   if (mod.late(i)) return `<span class="pill bad">⚠ Po termínu</span>`;
   return `<span class="pill idle">Otevřeno</span>`;
 }
@@ -1183,6 +1309,7 @@ function openConfirm(key, mod, item) {
       <div class="dlg-body">
         <h3>${esc(cfg.title)}</h3>
         <p class="dlg-sub">${esc(cfg.sub)}</p>
+        ${cfg.hint ? `<p class="dlg-hint">${esc(cfg.hint)}</p>` : ""}
         ${cfg.fields.map(f => `
           <div class="f">
             <label for="x-${f.key}">${esc(f.label)}</label>
@@ -1201,8 +1328,9 @@ function openConfirm(key, mod, item) {
     if (!dlg.querySelector("#dlgForm").checkValidity()) return;
     const payload = {};
     cfg.fields.forEach(f => { payload[f.key] = dlg.querySelector(`[name="${f.key}"]`).value; });
-    patchItem(key, item.key, { stav: "done", vyrizeno: todayISO(), ...payload });
-    toast(cfg.toast(payload));
+    const extra = cfg.derive ? cfg.derive(payload) : {};
+    patchItem(key, item.key, { stav: "done", vyrizeno: todayISO(), ...payload, ...extra });
+    toast(cfg.toast(payload, extra));
     render();
   });
 }
@@ -1275,7 +1403,7 @@ function openWipe() {
   dlg.returnValue = "";
   dlg.showModal();
   dlg.querySelector('[value="ok"]').addEventListener("click", () => {
-    store = { zakazky: [], banfy: [], chyby: [], dispoNames: {} };
+    store = { zakazky: [], banfy: [], objednavky: [], chyby: [], dispoNames: {} };
     picked = [];
     saveStore();
     savePicked();
