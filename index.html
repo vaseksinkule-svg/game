@@ -522,6 +522,30 @@ tbody tr.settled td:first-child { box-shadow: inset 3px 0 0 var(--ok); }
 .pill.bad  { background: var(--crit-bg); color: var(--crit); }
 .pill.good { background: var(--ok-bg); color: var(--ok); }
 .pill.hold { background: var(--warn-bg); color: var(--warn); }
+.pill.info { background: var(--accent-soft); color: var(--accent); }
+
+/* Filtr fází objednávky */
+.stages { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink-mid);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--edge);
+  padding: 6px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover { background: var(--panel-2); color: var(--ink); }
+.chip.on { border-color: var(--ink); color: var(--ink); background: var(--panel-2); }
+.chip.empty { opacity: .45; }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+.chip b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; }
 
 .blank {
   padding: 46px 20px;
@@ -896,16 +920,15 @@ function parseObjednavky(text) {
 const PARSERS = { zakazky: parseZakazky, banfy: parseBanfy, objednavky: parseObjednavky, chyby: parseChyby };
 
 function importItems(type, items) {
-  const prevDone = new Map((store[type] || [])
-    .filter(i => i.stav === "done")
-    .map(i => [i.key, i]));
+  const prev = new Map((store[type] || []).map(i => [i.key, i]));
   items.forEach(i => {
-    const old = prevDone.get(i.key);
+    const old = prev.get(i.key);
     if (!old) return;
     /* Sloupce se berou z čerstvého exportu, ale co do položky zapsal disponent
-       — potvrzené hodnoty, odchylky, datum vyřízení — musí přežít. */
+       — potvrzené hodnoty, odchylky, doručení — musí přežít. Platí i pro
+       rozpracované položky: objednávka je po potvrzení pořád otevřená. */
     for (const k of Object.keys(old)) if (!(k in i)) i[k] = old[k];
-    i.stav = "done";
+    i.stav = old.stav;
     i.vyrizeno = old.vyrizeno;
   });
   store[type] = items;
@@ -1011,8 +1034,38 @@ const MODULES = {
     unit: "položek",
     act: "Potvrdit",
     doneWord: "Potvrzeno",
-    late(i) { return i.datum < todayISO(); },
-    sort(a, b) { return a.datum < b.datum ? -1 : 1; },
+    /* Životní cyklus objednávky. „Na cestě" je odvozeno z termínu, ne ze
+       skutečné přepravy — znamená potvrzeno a do dodání zbývají nejvýš 3 dny. */
+    stages: [
+      { id: "objednano", label: "Objednáno",  cls: "hold", dot: "var(--warn)",     hint: "Odesláno dodavateli, ale zatím nepotvrdil termín ani cenu." },
+      { id: "potvrzeno", label: "Potvrzeno",  cls: "good", dot: "var(--ok)",       hint: "Dodavatel potvrdil. Do dodání zbývají víc než tři dny." },
+      { id: "naCeste",   label: "Na cestě",   cls: "info", dot: "var(--accent)",   hint: "Potvrzeno a dodání je do tří dnů — mělo by být na cestě." },
+      { id: "poTerminu", label: "Po termínu", cls: "bad",  dot: "var(--crit)",     hint: "Termín uplynul a zboží není zapsané jako doručené." },
+      { id: "doruceno",  label: "Doručeno",   cls: "idle", dot: "var(--ink-soft)", hint: "Vyřízeno, zboží dorazilo." }
+    ],
+    stage(i) {
+      if (i.stav === "done") return "doruceno";
+      const termin = i.potvrzeneDatum || i.datum;
+      if (termin < todayISO()) return "poTerminu";
+      if (!i.potvrzeneDatum) return "objednano";
+      return Math.round((Date.parse(termin) - Date.parse(todayISO())) / 86400000) <= 3 ? "naCeste" : "potvrzeno";
+    },
+    rowAction(i, stage) {
+      if (stage === "doruceno") return { undo: true, label: "Vrátit" };
+      /* Dokud dodavatel nepotvrdil, je hlavní úkol získat termín — i u položky
+         po termínu. Potom se čeká na dodání, ale potvrzení jde přepsat, když
+         dodavatel termín posune. */
+      if (!i.potvrzeneDatum) return { action: "potvrdit", label: "Potvrdit" };
+      return [
+        { action: "doruceno", label: "Doručeno" },
+        { action: "potvrdit", label: "Upravit", bare: true }
+      ];
+    },
+    late(i) { return this.stage(i) === "poTerminu"; },
+    sort(a, b) {
+      const ta = a.potvrzeneDatum || a.datum, tb = b.potvrzeneDatum || b.datum;
+      return ta < tb ? -1 : 1;
+    },
     cols: ["Objednávka", "Materiál", "Dodavatel", "Dispo", { t: "Množství", r: 1 }, "Dodání", { t: "Cena", r: 1 }, "Stav", ""],
     row(i) {
       const dateShift = i.potvrzeneDatum && i.potvrzeneDatum !== i.datum;
@@ -1036,11 +1089,23 @@ const MODULES = {
       const word = od.length === 1 ? "odchylka" : "odchylky";
       return `<span class="pill hold" title="${esc(od.join(" · "))}">⚠ ${od.length} ${word}</span>`;
     },
-    dialog(i) {
+    dialog(i, action) {
+      if (action === "doruceno") {
+        return {
+          title: `Zapsat doručení — objednávka ${i.doklad} / ${i.pol}`,
+          sub: `${i.material} · ${i.text} · ${i.dodavatel}`,
+          ok: "Doručeno",
+          fields: [{ key: "doruceno", label: "Datum doručení", type: "date", value: todayISO() }],
+          patch: { stav: "done", vyrizeno: todayISO() },
+          toast: p => `Objednávka ${i.doklad}/${i.pol} zapsána jako doručená ${fmtDate(p.doruceno)}.`
+        };
+      }
       return {
         title: `Potvrdit objednávku ${i.doklad} / ${i.pol}`,
         sub: `${i.material} · ${i.text} · ${i.dodavatel}`,
-        hint: "Přepiš údaje podle potvrzení od dodavatele. Co se liší od objednávky, se u položky vyznačí jako odchylka.",
+        hint: "Přepiš údaje podle potvrzení od dodavatele. Co se liší od objednávky, se u položky vyznačí jako odchylka. Objednávka zůstane otevřená, dokud nezapíšeš doručení.",
+        ok: "Potvrdit",
+        patch: { potvrzenoDne: todayISO() },
         fields: [
           { key: "potvrzenaObjednavka", label: "Číslo objednávky z potvrzení", type: "text", value: i.doklad },
           { key: "potvrzeneDatum", label: "Potvrzené datum doručení", type: "date", value: i.datum },
@@ -1065,7 +1130,7 @@ const MODULES = {
           const od = (extra && extra.odchylky) || [];
           return od.length
             ? `Objednávka ${i.doklad}/${i.pol} potvrzena s odchylkou — ${od.join(" · ")}.`
-            : `Objednávka ${i.doklad}/${i.pol} potvrzena, vše souhlasí.`;
+            : `Objednávka ${i.doklad}/${i.pol} potvrzena k ${fmtDate(p.potvrzeneDatum)}, vše souhlasí.`;
         }
       };
     }
@@ -1169,6 +1234,13 @@ function isoOffset(days) {
 }
 
 function statePill(i, mod) {
+  if (mod.stages) {
+    const st = mod.stages.find(x => x.id === mod.stage(i)) || mod.stages[0];
+    const kdy = st.id === "doruceno" && i.doruceno ? " " + fmtDate(i.doruceno) : "";
+    const od = (i.odchylky || []).length;
+    return `<span class="pill ${st.cls}" title="${esc(st.hint)}">${st.label}${kdy}</span>` +
+      (od ? ` <span class="pill hold" title="${esc(i.odchylky.join(" · "))}">⚠ ${od} ${plural(od, "odchylka", "odchylky", "odchylek")}</span>` : "");
+  }
   if (i.stav === "done") {
     if (mod.donePill) return mod.donePill(i);
     return `<span class="pill good">✓ ${mod.doneWord}${i.vyrizeno ? " " + fmtDate(i.vyrizeno) : ""}</span>`;
@@ -1276,11 +1348,13 @@ function viewBoard() {
 
 function viewReport(key) {
   const mod = MODULES[key];
-  const tab = tabState[key] || "open";
+  const tab = tabState[key] || (mod.stages ? "all" : "open");
   const q = (findState[key] || "").toLowerCase();
   const all = (store[key] || []).filter(pickMatch);
 
-  let items = all.filter(i => tab === "all" || (tab === "open" ? i.stav === "open" : i.stav === "done"));
+  let items = mod.stages
+    ? all.filter(i => tab === "all" || mod.stage(i) === tab)
+    : all.filter(i => tab === "all" || (tab === "open" ? i.stav === "open" : i.stav === "done"));
   if (q) items = items.filter(i => mod.find(i).some(f => String(f ?? "").toLowerCase().includes(q)));
   items = items.slice().sort(mod.sort);
 
@@ -1288,9 +1362,13 @@ function viewReport(key) {
     const cells = mod.row(i)
       .map(c => typeof c === "object" ? `<td class="n">${c.n}</td>` : `<td>${c}</td>`)
       .join("");
-    const act = i.stav === "open"
-      ? `<button class="btn go" type="button" data-do="${esc(i.key)}">${mod.act}</button>`
-      : `<button class="btn bare" type="button" data-undo="${esc(i.key)}">Vrátit</button>`;
+    const ra = mod.rowAction
+      ? mod.rowAction(i, mod.stage(i))
+      : (i.stav === "open" ? { action: "do", label: mod.act } : { undo: true, label: "Vrátit" });
+    const act = [].concat(ra).map(a => a.undo
+      ? `<button class="btn bare" type="button" data-undo="${esc(i.key)}">${a.label}</button>`
+      : `<button class="btn ${a.bare ? "bare" : "go"}" type="button" data-do="${esc(i.key)}" data-action="${esc(a.action)}">${a.label}</button>`
+    ).join(" ");
     const cls = i.stav === "done" ? "settled" : (mod.late(i) ? "overdue" : "");
     return `<tr class="${cls}">${cells}<td>${statePill(i, mod)}</td><td class="n">${act}</td></tr>`;
   }).join("");
@@ -1318,10 +1396,19 @@ function viewReport(key) {
     <p class="head-sub">${mod.cz} · ${openWord(openCount)}</p>
     <div class="tools">
       <input type="search" id="find" placeholder="Hledat (doklad, materiál, dispo…)" value="${esc(findState[key] || "")}">
+      ${mod.stages ? `
+      <div class="stages">
+        <button type="button" class="chip ${tab === "all" ? "on" : ""}" data-tab="all">Vše <b>${all.length}</b></button>
+        ${mod.stages.map(st => {
+          const n = all.filter(i => mod.stage(i) === st.id).length;
+          return `<button type="button" class="chip ${tab === st.id ? "on" : ""} ${n ? "" : "empty"}" data-tab="${st.id}" title="${esc(st.hint)}">
+            <span class="dot" style="background:${st.dot}"></span>${st.label} <b>${n}</b></button>`;
+        }).join("")}
+      </div>` : `
       <div class="seg">
         ${[["open", "Otevřené"], ["done", "Vyřízené"], ["all", "Vše"]].map(([v, l]) =>
           `<button type="button" data-tab="${v}" class="${tab === v ? "on" : ""}">${l}</button>`).join("")}
-      </div>
+      </div>`}
     </div>
     <div class="sheet">
       <table>
@@ -1359,12 +1446,12 @@ function wireReport(key) {
   document.querySelectorAll("[data-do]").forEach(b =>
     b.addEventListener("click", () => {
       const item = (store[key] || []).find(i => i.key === b.dataset.do);
-      if (item) openConfirm(key, mod, item);
+      if (item) openConfirm(key, mod, item, b.dataset.action);
     }));
 
   document.querySelectorAll("[data-undo]").forEach(b =>
     b.addEventListener("click", () => {
-      const item = patchItem(key, b.dataset.undo, { stav: "open", vyrizeno: undefined });
+      const item = patchItem(key, b.dataset.undo, { stav: "open", vyrizeno: undefined, doruceno: undefined });
       if (item) toast(`Doklad ${item.doklad || item.banf} vrácen mezi otevřené.`);
       render();
     }));
@@ -1372,8 +1459,8 @@ function wireReport(key) {
 
 /* ---------- dialog: potvrzení akce ---------- */
 
-function openConfirm(key, mod, item) {
-  const cfg = mod.dialog(item);
+function openConfirm(key, mod, item, action) {
+  const cfg = mod.dialog(item, action);
   const dlg = document.getElementById("dlg");
   dlg.innerHTML = `
     <form method="dialog" id="dlgForm">
@@ -1389,7 +1476,7 @@ function openConfirm(key, mod, item) {
       </div>
       <div class="dlg-foot">
         <button class="btn" value="cancel" formnovalidate>Zrušit</button>
-        <button class="btn go" value="ok">${mod.act}</button>
+        <button class="btn go" value="ok">${esc(cfg.ok || mod.act)}</button>
       </div>
     </form>`;
   dlg.returnValue = "";
@@ -1400,7 +1487,8 @@ function openConfirm(key, mod, item) {
     const payload = {};
     cfg.fields.forEach(f => { payload[f.key] = dlg.querySelector(`[name="${f.key}"]`).value; });
     const extra = cfg.derive ? cfg.derive(payload) : {};
-    patchItem(key, item.key, { stav: "done", vyrizeno: todayISO(), ...payload, ...extra });
+    const base = cfg.patch || { stav: "done", vyrizeno: todayISO() };
+    patchItem(key, item.key, { ...base, ...payload, ...extra });
     toast(cfg.toast(payload, extra));
     render();
   });

@@ -36,7 +36,28 @@ dlaždicemi. Má vlastní list dostupný z hlavičky (report `ME2A`); počet
 otevřených položek nese odznak u jeho názvu, červený, když je něco po
 termínu.
 
-U objednávek se proti potvrzení od dodavatele porovnávají tři údaje:
+Objednávka prochází pěti fázemi, které jsou vidět na první pohled —
+odznakem u řádku a filtrem s počty nad tabulkou:
+
+| Fáze | Kdy nastane |
+|---|---|
+| **Objednáno** | odesláno dodavateli, ještě nepotvrdil |
+| **Potvrzeno** | dodavatel potvrdil, do dodání víc než tři dny |
+| **Na cestě** | potvrzeno a do dodání zbývají nejvýš tři dny |
+| **Po termínu** | termín uplynul a zboží není zapsané jako doručené |
+| **Doručeno** | zapsáno doručení, položka je vyřízená |
+
+*Na cestě* je odvozené z termínu, ne ze skutečné přepravy — aplikace žádná
+data o zásilkách nemá. Znamená „mělo by být na cestě".
+
+Dokud dodavatel nepotvrdil, nabízí řádek **Potvrdit** — i u položky po
+termínu, protože tam je hlavní úkol zjistit nový termín. Po potvrzení se
+čeká na dodání tlačítkem **Doručeno**; kdyby dodavatel termín ještě
+posunul, přepíše se potvrzení odkazem **Upravit**.
+
+### Kontrola potvrzení
+
+Při potvrzování se proti potvrzení od dodavatele porovnávají tři údaje:
 **číslo objednávky**, **datum doručení** a **cena**. Přepíšeš je podle
 toho, co dodavatel poslal; co se liší od objednávky, se uloží jako
 odchylka.
@@ -49,8 +70,9 @@ V hlavičce se dá zúžit výběr na vlastní dispo kódy; volba se pamatuje.
 
 ## Co je dobré vědět
 
-- **Odbavené položky přežijí nový import.** Páruje se přes doklad + položku,
-  takže zítřejší export téhož reportu nepřepíše, co jsi dnes vyřídil.
+- **Zapsané údaje přežijí nový import.** Páruje se přes doklad + položku,
+  takže zítřejší export nepřepíše, co jsi zadal — a to i u položek, které
+  zůstávají otevřené, jako je potvrzená objednávka čekající na dodání.
 - **Report 500 108 se v každém běhu opakuje.** Řádky se slučují podle
   dokladu, položky a chybové zprávy — drží se poslední běh a počet výskytů.
 - **Kódování.** Exporty ze SAPu chodí občas ve windows-1252; pozná se to
