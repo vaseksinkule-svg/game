@@ -7,11 +7,14 @@ Jeden soubor `index.html`, bez závislostí a bez serveru. Stačí otevřít.
 
 ## Reporty
 
+Aplikace má dva samostatné listy, přepínají se v hlavičce.
+
+### Denní rutiny
+
 | Report | Název | Dlaždice |
 |---|---|---|
 | 500 116 | Unconfirmed Customer Orders | Nepotvrzené zakázky |
 | 212 020 | Current purchase requisitions | Aktuální BANFy |
-| ME2A | Order acknowledgements | Potvrzení objednávek |
 | 500 108 | Fehlerprotokolle Lieferanlage | Nevyklopené dodávky |
 
 ## Jak se to používá
@@ -26,7 +29,12 @@ Po rozkliknutí lze každou položku odbavit — u zakázek se zadá potvrzené
 množství a datum, u BANFů a chyb stačí potvrdit. Omylem odbavenou položku
 vrátí tlačítko **Vrátit**.
 
-### Potvrzení objednávek
+### Potvrzení objednávek — samostatný list
+
+Potvrzování objednávek u dodavatele není denní rutina, takže nesedí mezi
+dlaždicemi. Má vlastní list dostupný z hlavičky (report `ME2A`); počet
+otevřených položek nese odznak u jeho názvu, červený, když je něco po
+termínu.
 
 U objednávek se proti potvrzení od dodavatele porovnávají tři údaje:
 **číslo objednávky**, **datum doručení** a **cena**. Přepíšeš je podle

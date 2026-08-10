@@ -192,6 +192,38 @@ a { color: var(--accent); text-decoration: none; }
   color: var(--ink-soft);
 }
 
+/* Dva samostatné listy — denní rutiny a potvrzování objednávek */
+.bar-nav { display: flex; gap: 2px; flex-wrap: wrap; }
+
+.navlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .86rem;
+  font-weight: 600;
+  color: var(--ink-mid);
+  text-decoration: none;
+  padding: 6px 11px;
+  border-radius: var(--edge);
+  white-space: nowrap;
+}
+.navlink:hover { background: var(--panel-2); color: var(--ink); }
+.navlink.on { background: var(--accent-soft); color: var(--ink); }
+
+.navcount {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: .72rem;
+  font-weight: 700;
+  border-radius: 9px;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+  background: var(--idle-bg);
+  color: var(--ink-mid);
+}
+.navcount.bad { background: var(--crit); color: var(--panel); }
+
 .bar-spacer { flex: 1 1 auto; }
 
 .bar-date {
@@ -687,6 +719,7 @@ footer {
     <b>Kokpit rutin</b>
     <span>ZATE · denní odbavení</span>
   </span>
+  <nav class="bar-nav" id="barNav"></nav>
   <span class="bar-spacer"></span>
   <span class="bar-date" id="today"></span>
   <details class="pick" id="pick">
@@ -899,6 +932,7 @@ function decodeBuffer(buf) {
 
 const MODULES = {
   zakazky: {
+    group: "rutiny",
     code: "500 116",
     name: "Unconfirmed Customer Orders",
     cz: "Nepotvrzené zakázky",
@@ -935,6 +969,7 @@ const MODULES = {
   },
 
   banfy: {
+    group: "rutiny",
     code: "212 020",
     name: "Current purchase requisitions",
     cz: "Aktuální BANFy",
@@ -968,6 +1003,7 @@ const MODULES = {
   },
 
   objednavky: {
+    group: "objednavky",
     code: "ME2A",
     name: "Order acknowledgements",
     cz: "Potvrzení objednávek",
@@ -1036,6 +1072,7 @@ const MODULES = {
   },
 
   chyby: {
+    group: "rutiny",
     code: "500 108",
     name: "Fehlerprotokolle Lieferanlage",
     cz: "Nevyklopené dodávky",
@@ -1097,6 +1134,20 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 function fmtNum(n) { return Number(n).toLocaleString("cs-CZ"); }
+
+/* Skloňování po číslovce: 1 / 2–4 / 5 a víc */
+function plural(n, one, few, many) { return n === 1 ? one : (n >= 2 && n <= 4 ? few : many); }
+const UNIT_FORMS = {
+  "položek": ["položka", "položky", "položek"],
+  "dokladů": ["doklad", "doklady", "dokladů"]
+};
+function unitWord(mod, n) {
+  const f = UNIT_FORMS[mod.unit];
+  return f ? plural(n, f[0], f[1], f[2]) : mod.unit;
+}
+function openWord(n) {
+  return n + " " + plural(n, "otevřená položka", "otevřené položky", "otevřených položek");
+}
 function fmtPrice(n) {
   return Number(n).toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -1150,9 +1201,26 @@ function hasAnyData() {
    VYKRESLENÍ
    ============================================================ */
 
+function drawNav() {
+  const onObj = location.hash.replace("#", "") === "objednavky";
+  const mod = MODULES.objednavky;
+  const items = (store.objednavky || []).filter(pickMatch);
+  const open = items.filter(i => i.stav === "open");
+  const late = open.filter(i => mod.late(i));
+
+  let badge = "";
+  if (late.length) badge = `<span class="navcount bad" title="po termínu">${late.length}</span>`;
+  else if (open.length) badge = `<span class="navcount">${open.length}</span>`;
+
+  document.getElementById("barNav").innerHTML =
+    `<a class="navlink${onObj ? "" : " on"}" href="#">Denní rutiny</a>` +
+    `<a class="navlink${onObj ? " on" : ""}" href="#objednavky">${mod.cz}${badge}</a>`;
+}
+
 function render() {
   const key = location.hash.replace("#", "");
   const app = document.getElementById("app");
+  drawNav();
   if (MODULES[key]) {
     app.innerHTML = viewReport(key);
     wireReport(key);
@@ -1164,7 +1232,7 @@ function render() {
 }
 
 function viewBoard() {
-  const tiles = Object.entries(MODULES).map(([key, mod]) => {
+  const tiles = Object.entries(MODULES).filter(([, mod]) => mod.group === "rutiny").map(([key, mod]) => {
     const items = (store[key] || []).filter(pickMatch);
     const open = items.filter(i => i.stav === "open");
     const late = open.filter(i => mod.late(i));
@@ -1178,7 +1246,7 @@ function viewBoard() {
         <span class="tile-code">${mod.code}</span>
         <span class="tile-name">${mod.name}</span>
         <span class="tile-cz">${mod.cz}</span>
-        <span class="tile-fig">${open.length}<i>${mod.unit}</i></span>
+        <span class="tile-fig">${open.length}<i>${unitWord(mod, open.length)}</i></span>
         <span class="tile-state">
           ${state}
           ${doneToday.length ? `<span class="good">✓ ${doneToday.length} dnes vyřízeno</span>` : ""}
@@ -1193,7 +1261,7 @@ function viewBoard() {
       <p>Stránka si nic nestahuje ze SAPu sama — čte textové exporty, které si stáhneš ze ZATE. Data zůstávají jen v tomto prohlížeči.</p>
       <ol>
         <li>V SAPu spusť ZATE a report ulož jako lokální soubor (text s tabulátory).</li>
-        <li>Nahoře klikni na <strong>Import ze ZATE</strong> a soubory vyber — <code>500116</code>, <code>212020</code> i <code>500108</code> naráz.</li>
+        <li>Nahoře klikni na <strong>Import ze ZATE</strong> a soubory vyber — všechny naráz, včetně potvrzení objednávek.</li>
         <li>Typ reportu se pozná sám podle hlavičky, nemusíš nic vybírat.</li>
       </ol>
       <button class="btn go" type="button" data-open-import="1">Import ze ZATE</button>
@@ -1238,13 +1306,16 @@ function viewReport(key) {
     ? "V tomto filtru nic nezbylo."
     : "Žádná data — naimportuj export ze ZATE.";
 
+  const crumb = mod.group === "rutiny"
+    ? `<a class="back" href="#">← Denní rutiny</a><span class="rule">/</span>`
+    : "";
+
   return `
     <div class="head" style="--hue:${mod.hue}">
-      <a class="back" href="#">← Přehled</a>
-      <span class="rule">/</span>
+      ${crumb}
       <h2><span class="code">${mod.code}</span> · ${mod.name}</h2>
     </div>
-    <p class="head-sub">${mod.cz} · ${openCount} otevřených</p>
+    <p class="head-sub">${mod.cz} · ${openWord(openCount)}</p>
     <div class="tools">
       <input type="search" id="find" placeholder="Hledat (doklad, materiál, dispo…)" value="${esc(findState[key] || "")}">
       <div class="seg">
@@ -1343,7 +1414,7 @@ function openImport() {
     <form method="dialog" id="dlgForm">
       <div class="dlg-body">
         <h3>Import ze ZATE</h3>
-        <p class="dlg-sub">Vyber stažené exporty — 500 116, 212 020 i 500 108 můžeš naráz. Typ reportu se pozná podle hlavičky. Vyřízené položky zůstanou vyřízené.</p>
+        <p class="dlg-sub">Vyber stažené exporty — rutinní reporty i potvrzení objednávek můžeš naráz. Typ reportu se pozná podle hlavičky. Vyřízené položky zůstanou vyřízené.</p>
         <div class="f">
           <label for="impFiles">Soubory</label>
           <input type="file" id="impFiles" multiple accept=".txt,text/plain">
