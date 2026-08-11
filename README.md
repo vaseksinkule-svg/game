@@ -81,6 +81,11 @@ V hlavičce se dá zúžit výběr na vlastní dispo kódy; volba se pamatuje.
   materiál, krátký text, dodavatel, název dodavatele, množství, MJ, datum
   dodání, cena, měna, dispo, potvrzeno. Poslední dva jsou nepovinné.
   Pokud tvůj export vypadá jinak, stačí upravit `parseObjednavky`.
+- **Čísla dokladů.** Objednávka vždy začíná `70` — podle toho se v exportu
+  poznají datové řádky od hlaviček a mezisoučtů. Číslo materiálu je
+  sedmimístné a začíná dvojkou nebo čtyřkou; zobrazuje se s tečkami
+  (`2.090.290`), i když je export pošle bez nich. Hledat lze v obou
+  tvarech, `2090290` najde totéž co `2.090.290`.
 - **Zapsané odchylky jsou snímek k okamžiku potvrzení.** Když se objednávka
   v SAPu později změní, řádek porovnává potvrzenou hodnotu s tou novou,
   ale uložený text odchylky zůstává původní.

@@ -894,13 +894,14 @@ function parseChyby(text) {
    Sloupce (poziční, stejně jako ostatní reporty):
    Objednávka | Pol. | Materiál | Krátký text | Dodavatel | Název dodavatele |
    Množství | MJ | Datum dodání | Cena | Měna | Dispo | Potvrzeno
-   Poslední dva sloupce jsou nepovinné. */
+   Poslední dva sloupce jsou nepovinné.
+   Číslo objednávky vždy začíná 70 — podle toho se poznají datové řádky. */
 function parseObjednavky(text) {
   const out = [];
   for (const line of text.split(/\r?\n/)) {
     const t = tok(line);
     if (t.length < 11) continue;
-    if (!/^\d{8,10}$/.test(t[0])) continue;
+    if (!/^70\d{4,10}$/.test(t[0].replace(/[.\s]/g, ""))) continue;
     const datum = parseDate(t[8]);
     if (!datum) continue;
     out.push({
@@ -969,7 +970,7 @@ const MODULES = {
     row(i) {
       return [
         `<span class="doc">${esc(i.doklad)} <em>/ ${esc(i.pol)}</em></span>`,
-        `<span class="mat">${esc(i.material)}</span><span class="mat-cat">${esc(i.popis)}</span>`,
+        `<span class="mat">${esc(fmtMat(i.material))}</span><span class="mat-cat">${esc(i.popis)}</span>`,
         `<span class="dispo" title="${esc(dispoName(i.dispo))}">${esc(i.dispo)}</span>`,
         { n: `${fmtNum(i.mnozstvi)} ${esc(i.mj)}` },
         `<span class="num">${fmtDate(i.datum)}</span>`,
@@ -981,7 +982,7 @@ const MODULES = {
     dialog(i) {
       return {
         title: `Potvrdit zakázku ${i.doklad} / ${i.pol}`,
-        sub: `${i.material} · ${i.popis}`,
+        sub: `${fmtMat(i.material)} · ${i.popis}`,
         fields: [
           { key: "potvrzeneMnozstvi", label: `Potvrzené množství (${i.mj})`, type: "number", value: i.mnozstvi },
           { key: "potvrzeneDatum", label: "Potvrzené datum", type: "date", value: i.datum < todayISO() ? isoOffset(1) : i.datum }
@@ -1006,7 +1007,7 @@ const MODULES = {
     row(i) {
       return [
         `<span class="doc">${esc(i.banf)} <em>/ ${esc(i.pol)}</em></span>`,
-        `<span class="mat">${esc(i.material)}</span><span class="mat-cat">${esc(i.text)}${i.dodavatel ? " · " + esc(i.dodavatel) : ""}</span>`,
+        `<span class="mat">${esc(fmtMat(i.material))}</span><span class="mat-cat">${esc(i.text)}${i.dodavatel ? " · " + esc(i.dodavatel) : ""}</span>`,
         `<span class="dispo" title="${esc(dispoName(i.dispo))}">${esc(i.dispo)}</span>`,
         { n: `${fmtNum(i.mnozstvi)} ${esc(i.mj)}` },
         `<span class="num soft">${fmtDate(i.reqDate)}</span>`,
@@ -1018,7 +1019,7 @@ const MODULES = {
     dialog(i) {
       return {
         title: `Vyřídit BANF ${i.banf} / ${i.pol}`,
-        sub: `${i.material} · ${i.text} · ${fmtNum(i.mnozstvi)} ${i.mj} · dodání ${fmtDate(i.delivDate)}`,
+        sub: `${fmtMat(i.material)} · ${i.text} · ${fmtNum(i.mnozstvi)} ${i.mj} · dodání ${fmtDate(i.delivDate)}`,
         fields: [],
         toast: () => `BANF ${i.banf}/${i.pol} označena jako vyřízená.`
       };
@@ -1072,7 +1073,7 @@ const MODULES = {
       const priceShift = i.potvrzenaCena !== undefined && Math.abs(Number(i.potvrzenaCena) - Number(i.cena)) > 0.005;
       return [
         `<span class="doc">${esc(i.doklad)} <em>/ ${esc(i.pol)}</em></span>`,
-        `<span class="mat">${esc(i.material)}</span><span class="mat-cat">${esc(i.text)}</span>`,
+        `<span class="mat">${esc(fmtMat(i.material))}</span><span class="mat-cat">${esc(i.text)}</span>`,
         `${esc(i.dodavatel)}<span class="mat-cat">${esc(i.dodavatelKod)}</span>`,
         i.dispo ? `<span class="dispo" title="${esc(dispoName(i.dispo))}">${esc(i.dispo)}</span>` : `<span class="soft">—</span>`,
         { n: `${fmtNum(i.mnozstvi)} ${esc(i.mj)}` },
@@ -1093,7 +1094,7 @@ const MODULES = {
       if (action === "doruceno") {
         return {
           title: `Zapsat doručení — objednávka ${i.doklad} / ${i.pol}`,
-          sub: `${i.material} · ${i.text} · ${i.dodavatel}`,
+          sub: `${fmtMat(i.material)} · ${i.text} · ${i.dodavatel}`,
           ok: "Doručeno",
           fields: [{ key: "doruceno", label: "Datum doručení", type: "date", value: todayISO() }],
           patch: { stav: "done", vyrizeno: todayISO() },
@@ -1102,7 +1103,7 @@ const MODULES = {
       }
       return {
         title: `Potvrdit objednávku ${i.doklad} / ${i.pol}`,
-        sub: `${i.material} · ${i.text} · ${i.dodavatel}`,
+        sub: `${fmtMat(i.material)} · ${i.text} · ${i.dodavatel}`,
         hint: "Přepiš údaje podle potvrzení od dodavatele. Co se liší od objednávky, se u položky vyznačí jako odchylka. Objednávka zůstane otevřená, dokud nezapíšeš doručení.",
         ok: "Potvrdit",
         patch: { potvrzenoDne: todayISO() },
@@ -1151,7 +1152,7 @@ const MODULES = {
     row(i) {
       return [
         `<span class="doc">${esc(i.doklad)} <em>/ ${esc(i.pol)}</em></span>`,
-        `<span class="mat">${esc(i.material)}</span><span class="mat-cat">${esc(i.matText)}</span>`,
+        `<span class="mat">${esc(fmtMat(i.material))}</span><span class="mat-cat">${esc(i.matText)}</span>`,
         `<span class="dispo" title="${esc(dispoName(i.dispo))}">${esc(i.dispo)}</span>`,
         `<span class="errtext">${esc(i.zprava)}</span>`,
         `${esc(i.osoba)}<span class="mat-cat">SGrp ${esc(i.sgrp)}</span>`,
@@ -1163,7 +1164,7 @@ const MODULES = {
     dialog(i) {
       return {
         title: `Označit doklad ${i.doklad} / ${i.pol} jako vyřešený`,
-        sub: `${i.material} · ${i.zprava}`,
+        sub: `${fmtMat(i.material)} · ${i.zprava}`,
         fields: [],
         toast: () => `Doklad ${i.doklad}/${i.pol} označen jako vyřešený.`
       };
@@ -1199,6 +1200,19 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 function fmtNum(n) { return Number(n).toLocaleString("cs-CZ"); }
+
+/* Číslo materiálu ze SAPu je sedmimístné a začíná dvojkou nebo čtyřkou.
+   V exportu chodí s tečkami (2.090.290); když je export nemá, doplní se,
+   aby se číslo dalo přečíst stejně jako v systému. Ostatní tvary
+   zůstávají beze změny. */
+function fmtMat(s) {
+  const t = String(s ?? "").trim();
+  const d = t.replace(/\./g, "");
+  return /^[24]\d{6}$/.test(d) ? `${d.slice(0, 1)}.${d.slice(1, 4)}.${d.slice(4)}` : t;
+}
+
+/* Pro hledání se tečky a mezery ignorují — 2090290 najde 2.090.290. */
+function normKey(s) { return String(s ?? "").toLowerCase().replace(/[.\s]/g, ""); }
 
 /* Skloňování po číslovce: 1 / 2–4 / 5 a víc */
 function plural(n, one, few, many) { return n === 1 ? one : (n >= 2 && n <= 4 ? few : many); }
@@ -1355,7 +1369,13 @@ function viewReport(key) {
   let items = mod.stages
     ? all.filter(i => tab === "all" || mod.stage(i) === tab)
     : all.filter(i => tab === "all" || (tab === "open" ? i.stav === "open" : i.stav === "done"));
-  if (q) items = items.filter(i => mod.find(i).some(f => String(f ?? "").toLowerCase().includes(q)));
+  if (q) {
+    const qn = normKey(q);
+    items = items.filter(i => mod.find(i).some(f => {
+      const v = String(f ?? "").toLowerCase();
+      return v.includes(q) || (qn && normKey(v).includes(qn));
+    }));
+  }
   items = items.slice().sort(mod.sort);
 
   const rows = items.map(i => {
