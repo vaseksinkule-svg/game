@@ -272,7 +272,7 @@ a { color: var(--accent); text-decoration: none; }
    OBSAH
    ============================================================ */
 main {
-  max-width: 1180px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 26px 22px 72px;
 }
@@ -471,6 +471,11 @@ tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background: var(--panel-2); }
 
 td.n { text-align: right; white-space: nowrap; }
+
+/* Sloupec materiálu je ve všech reportech druhý — potřebuje šířku,
+   aby se krátký text nelámal do tří řádků. */
+tbody td:nth-child(2) { min-width: 195px; }
+
 
 /* Řádek po termínu nese barevnou hranu — stav čitelný tvarem, ne jen textem */
 tbody tr.overdue td:first-child { box-shadow: inset 3px 0 0 var(--crit); }
@@ -950,6 +955,151 @@ function decodeBuffer(buf) {
   return text;
 }
 
+
+/* ============================================================
+   UKÁZKOVÁ DATA
+   Vymyšlené firmy, materiály i doklady — jen tvarem odpovídají
+   skutečným exportům. Prochází stejnými parsery jako ostrá data,
+   takže zároveň ověřují, že formát sedí.
+   ============================================================ */
+
+const DEMO_MAT = [
+  ["2.090.290", "Ložisko kuličkové 6205-2RS",   "KS"],
+  ["2.624.180", "Hřídel ocelová Ø25×340",       "KS"],
+  ["4.459.290", "Elektromotor 1,5 kW 1400 ot.", "KS"],
+  ["2.311.740", "Těsnicí kroužek NBR 25×35×7",  "KS"],
+  ["4.128.660", "Plech ocelový S235JR 2,0 mm",  "KG"],
+  ["2.505.910", "Šroub M8×40 DIN 933 Zn",       "KS"],
+  ["4.612.330", "Barva prášková RAL 5010",      "KG"]
+];
+const DEMO_DOD = [
+  ["D-1001", "Ložiska Morava s.r.o."],
+  ["D-1002", "Kovoobrábění Vsetín a.s."],
+  ["D-1003", "ElektroPohon GmbH"],
+  ["D-1004", "Gumotech CZ s.r.o."],
+  ["D-1005", "Hutní materiál Nova a.s."],
+  ["D-1006", "Spojovací materiál Delta"],
+  ["D-1007", "Práškové laky Optima"]
+];
+const DEMO_DISPO = [["101", "Sinkule"], ["102", "Havlíčková"], ["103", "Roubal"]];
+
+function demoDate(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  const z = n => String(n).padStart(2, "0");
+  return `${z(d.getDate())}.${z(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+function demoLine(cols) { return cols.join("\t"); }
+
+function demoObjednavky() {
+  /* číslo objednávky vždy 70 + šest číslic */
+  const rows = [
+    ["70334388", "10", 0, 500,  -9, "42,50",    "101"],
+    ["70551204", "20", 1, 300,   2, "310,00",   "101"],
+    ["70119876", "10", 2,  30,  -3, "4.250,00", "102"],
+    ["70402915", "10", 3, 2000, 11, "6,80",     "101"],
+    ["70887310", "30", 4, 1200,  1, "28,90",    "103"],
+    ["70265447", "10", 5, 5000, 24, "1,20",     "101"],
+    ["70673092", "10", 6,  200,  6, "185,00",   "103"],
+    ["70918365", "20", 2,  15,  33, "4.250,00", "102"]
+  ];
+  return ["ZATE 500 402 — Order acknowledgements"].concat(rows.map(r => {
+    const m = DEMO_MAT[r[2]], d = DEMO_DOD[r[2]];
+    return demoLine([r[0], r[1], m[0], m[1], d[0], d[1], String(r[3]), m[2],
+                     demoDate(r[4]), r[5], "CZK", r[6], ""]);
+  })).join("\n");
+}
+
+function demoZakazky() {
+  const rows = [
+    ["101", 0, "3312088", "10", -4, 250],
+    ["101", 1, "3312104", "20",  3, 120],
+    ["102", 2, "3312177", "10",  8,  40],
+    ["103", 4, "3312203", "10", -1, 800],
+    ["101", 5, "3312250", "40", 12, 4000]
+  ];
+  return ["ZATE 500 116 — Unconfirmed Customer Orders"].concat(rows.map(r => {
+    const m = DEMO_MAT[r[1]];
+    return demoLine([r[0], m[1], m[0], r[2], r[3], demoDate(r[4]), String(r[5]), m[2],
+                     demoDate(-21), "A", "2", r[4] < 0 ? "Z1" : "", "X"]);
+  })).join("\n");
+}
+
+function demoBanfy() {
+  const rows = [
+    ["101", 0, "10077412", "10", -9, -2, 500,  true],
+    ["101", 3, "10077455", "10",  1,  9, 2000, false],
+    ["103", 4, "10077490", "20",  4, 14, 1200, false],
+    ["102", 2, "10077512", "10",  6, 21, 30,   true]
+  ];
+  return ["ZATE 212 020 — Current purchase requisitions"].concat(rows.map(r => {
+    const m = DEMO_MAT[r[1]], d = DEMO_DOD[r[1]];
+    return demoLine(["1000", "01", "P01", r[0], "H-402", r[2], r[3], m[0], m[1],
+                     String(r[6]), m[2], demoDate(r[4]), demoDate(r[5]),
+                     d[0], d[1], "X", r[7] ? "Yes" : "No"]);
+  })).join("\n");
+}
+
+function demoChyby() {
+  const rows = [
+    ["0080114237", "10", 0, "101", "Chybí volná zásoba pro dodávku",        "Novák",    "S3", 3],
+    ["0080114288", "20", 4, "103", "Materiál blokován kontrolou jakosti",   "Dvořák",   "S1", 1],
+    ["0080114301", "10", 2, "102", "Nelze určit trasu — chybí přepravce",   "Svobodová","S2", 5]
+  ];
+  return ["ZATE 500 108 — Fehlerprotokolle Lieferanlage"].concat(rows.flatMap(r => {
+    const m = DEMO_MAT[r[2]];
+    const dispoJmeno = (DEMO_DISPO.find(x => x[0] === r[3]) || ["", ""])[1];
+    /* stejný doklad chodí v každém běhu znovu — sloučí se a spočítá výskyty */
+    return Array.from({ length: r[7] }, (_, k) =>
+      demoLine([demoDate(-k), "06:1" + (k % 6) + ":22", "RUN" + k, "W1", "V1",
+                r[0], r[1], m[0], m[1], r[3], dispoJmeno, "XX", "VL4" + r[1],
+                "12", m[2], "1.5", r[4], r[5], r[6]]));
+  })).join("\n");
+}
+
+function loadDemo() {
+  [demoZakazky(), demoBanfy(), demoObjednavky(), demoChyby()].forEach(t => importText(t));
+
+  /* Potvrzení a doručení zadává disponent, v exportu nejsou — u ukázky je
+     dopíšeme, aby byly vidět všechny fáze objednávky najednou. */
+  const posun = (key, dny, odchylka) => {
+    const i = (store.objednavky || []).find(x => x.doklad === key);
+    if (!i) return;
+    const d = new Date();
+    d.setDate(d.getDate() + dny);
+    i.potvrzeneDatum = d.toISOString().slice(0, 10);
+    i.potvrzenaObjednavka = i.doklad;
+    i.potvrzenaCena = odchylka ? Math.round(i.cena * 1.08 * 100) / 100 : i.cena;
+    i.potvrzenoDne = todayISO();
+    i.odchylky = odchylka
+      ? [`cena ${fmtPrice(i.potvrzenaCena)} místo ${fmtPrice(i.cena)} ${i.mena} (+8 %)`]
+      : [];
+  };
+  posun("70402915", 11, true);    // potvrzeno, termín daleko
+  posun("70887310", 1,  false);   // na cestě
+  posun("70265447", 24, false);   // potvrzeno
+  posun("70119876", -3, false);   // potvrzeno, ale termín uplynul → po termínu
+
+  const dorucena = (store.objednavky || []).find(x => x.doklad === "70673092");
+  if (dorucena) {
+    dorucena.potvrzeneDatum = dorucena.datum;
+    dorucena.potvrzenaCena = dorucena.cena;
+    dorucena.odchylky = [];
+    dorucena.stav = "done";
+    dorucena.vyrizeno = todayISO();
+    dorucena.doruceno = todayISO();
+  }
+
+  /* pár rutinních položek už odbavených, ať není seznam samá otevřená */
+  const hotovo = (store.zakazky || []).find(x => x.doklad === "3312250");
+  if (hotovo) { hotovo.stav = "done"; hotovo.vyrizeno = todayISO(); }
+
+  saveStore();
+  drawPicker();
+  render();
+  toast("Naimportována ukázková data — vymyšlené doklady, materiály i dodavatelé.");
+}
+
 /* ============================================================
    REPORTY — nový report = nová položka zde
    ============================================================ */
@@ -1351,6 +1501,10 @@ function viewBoard() {
         <li>Typ reportu se pozná sám podle hlavičky, nemusíš nic vybírat.</li>
       </ol>
       <button class="btn go" type="button" data-open-import="1">Import ze ZATE</button>
+      <button class="btn" type="button" data-demo="1">Načíst ukázková data</button>
+      <p style="margin:12px 0 0;font-size:.82rem;color:var(--ink-soft)">
+        Ukázka je celá vymyšlená — doklady, materiály i dodavatelé. Slouží k vyzkoušení,
+        než budeš mít po ruce vlastní export.</p>
     </div>`;
 
   return `
@@ -1445,6 +1599,8 @@ function wireBoard() {
     el.addEventListener("click", () => { location.hash = el.dataset.go; }));
   const imp = document.querySelector("[data-open-import]");
   if (imp) imp.addEventListener("click", openImport);
+  const dem = document.querySelector("[data-demo]");
+  if (dem) dem.addEventListener("click", loadDemo);
 }
 
 function wireReport(key) {
@@ -1533,12 +1689,15 @@ function openImport() {
         </div>
       </div>
       <div class="dlg-foot">
+        <button class="btn bare" type="button" id="demoBtn">Načíst ukázková data</button>
+        <span style="flex:1 1 auto"></span>
         <button class="btn" value="cancel" formnovalidate>Zrušit</button>
         <button class="btn go" value="ok">Importovat</button>
       </div>
     </form>`;
   dlg.returnValue = "";
   dlg.showModal();
+  document.getElementById("demoBtn").addEventListener("click", () => { dlg.close(); loadDemo(); });
   dlg.querySelector('[value="ok"]').addEventListener("click", async () => {
     const files = [...dlg.querySelector("#impFiles").files];
     const pasted = dlg.querySelector("#impText").value.trim();

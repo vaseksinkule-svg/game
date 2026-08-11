@@ -17,6 +17,17 @@ Aplikace má dva samostatné listy, přepínají se v hlavičce.
 | 212 020 | Current purchase requisitions | Aktuální BANFy |
 | 500 108 | Fehlerprotokolle Lieferanlage | Nevyklopené dodávky |
 
+## Vyzkoušení bez dat
+
+Na prázdném přehledu je vedle importu tlačítko **Načíst ukázková data**
+(později i v dialogu importu). Naplní všechny čtyři reporty vymyšlenými
+doklady, materiály a dodavateli — nic z toho neodpovídá skutečné firmě,
+jen tvarem sedí na formát exportu.
+
+Ukázka prochází stejnými parsery jako ostrá data, takže zároveň ověřuje,
+že formát souhlasí. U objednávek je zastoupena každá z pěti fází včetně
+jedné s cenovou odchylkou. Tlačítko *Vymazat data* ji odstraní.
+
 ## Jak se to používá
 
 1. V SAPu spusť ZATE a report ulož jako lokální soubor (text s tabulátory).
